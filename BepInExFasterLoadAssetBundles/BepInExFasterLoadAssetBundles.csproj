@@ -27,4 +27,13 @@
     <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" IncludeAssets="compile" PrivateAssets="all" />
   </ItemGroup>
 
+  <Target Name="CopyPublishFiles" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <PublishFiles Include="$(MSBuildThisFileDirectory)Publish/*.*" />
+    </ItemGroup>
+
+    <!-- Copies icon.png and manifest.json -->
+    <Copy SourceFiles="@(PublishFiles)" DestinationFolder="$(OutDir)" Condition="@(PublishFiles-&gt;Count()) != 0" />
+  </Target>
+
 </Project>
