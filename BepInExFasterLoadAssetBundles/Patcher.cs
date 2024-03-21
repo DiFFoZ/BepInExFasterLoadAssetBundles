@@ -59,6 +59,18 @@ internal static class Patcher
 
     public static void LoadAssetBundleFromFileFast(ref string path)
     {
-        AssetBundleManager.TryRecompressAssetBundle(ref path);
+        // mod trying to load assetbundle at null path, buh
+        if (path == null)
+        {
+            return;
+        }
+
+        var tempPath = string.Copy(path);
+        var success = AssetBundleManager.TryRecompressAssetBundle(ref tempPath);
+
+        if (success)
+        {
+            path = tempPath;
+        }
     }
 }

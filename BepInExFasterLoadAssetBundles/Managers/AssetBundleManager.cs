@@ -19,72 +19,81 @@ internal class AssetBundleManager
         }
     }
 
-    public void TryRecompressAssetBundle(ref string path)
+    public bool TryRecompressAssetBundle(ref string path)
     {
-        byte[] hash;
-        using (var fileStream = File.OpenRead(path))
+        try
         {
-            hash = HashingHelper.HashStream(fileStream);
-        }
-
-        var metadata = MetadataManager.Instance.FindMetadataByHash(hash);
-        if (metadata != null && metadata.UncompressedAssetBundleName != null)
-        {
-            var newPath = Path.Combine(CachePath, metadata.UncompressedAssetBundleName);
-            if (File.Exists(newPath))
+            byte[] hash;
+            using (var fileStream = File.OpenRead(path))
             {
-                path = newPath;
-                return;
+                hash = HashingHelper.HashStream(fileStream);
             }
 
-            Console.WriteLine("Unable to find decompressed assetbundle");
-        }
-
-        if (metadata?.ShouldNotDecompress == true)
-        {
-            Console.WriteLine("Ignored decompress");
-            return;
-        }
-
-        metadata = new()
-        {
-            OriginalAssetBundleHash = HashingHelper.HashToString(hash)
-        };
-        var outputName = Path.GetFileNameWithoutExtension(path) + '_' + metadata.GetHashCode() + ".assetbundle";
-        var outputPath = Path.Combine(CachePath, outputName);
-
-        var op = AssetBundle.RecompressAssetBundleAsync(path, outputPath, BuildCompression.UncompressedRuntime, 0, ThreadPriority.High);
-        AsyncOperationHelper.WaitUntilOperationComplete(op);
-
-        if (op.result is not AssetBundleLoadResult.Success)
-        {
-            Console.WriteLine(op.humanReadableResult);
-            return;
-        }
-
-        var shouldDelete = false;
-        using (var fileStream = File.OpenRead(outputPath))
-        {
-            if (hash.AsSpan().SequenceEqual(HashingHelper.HashStream(fileStream)))
+            var metadata = MetadataManager.Instance.FindMetadataByHash(hash);
+            if (metadata != null && metadata.UncompressedAssetBundleName != null)
             {
-                Console.WriteLine("SEQ EQUAL");
+                var newPath = Path.Combine(CachePath, metadata.UncompressedAssetBundleName);
+                if (File.Exists(newPath))
+                {
+                    path = newPath;
+                    return true;
+                }
 
-                metadata.ShouldNotDecompress = true;
-                MetadataManager.Instance.AddMetadata(metadata);
-
-                shouldDelete = true;
+                BepInExFasterLoadAssetBundlesPatcher.Logger.LogWarning($"Failed to find decompressed assetbundle at {newPath}. Probably it was deleted?");
             }
-        }
 
-        if (shouldDelete)
+            if (metadata?.ShouldNotDecompress == true)
+            {
+                return false;
+            }
+
+            metadata = new()
+            {
+                OriginalAssetBundleHash = HashingHelper.HashToString(hash)
+            };
+            var outputName = Path.GetFileNameWithoutExtension(path) + '_' + metadata.GetHashCode() + ".assetbundle";
+            var outputPath = Path.Combine(CachePath, outputName);
+
+            var op = AssetBundle.RecompressAssetBundleAsync(path, outputPath, BuildCompression.UncompressedRuntime, 0, ThreadPriority.High);
+            AsyncOperationHelper.WaitUntilOperationComplete(op);
+
+            if (op.result is not AssetBundleLoadResult.Success)
+            {
+                BepInExFasterLoadAssetBundlesPatcher.Logger.LogWarning($"Failed to decompress a assetbundle at {path}\n{op.humanReadableResult}");
+                return false;
+            }
+
+            // check if unity returned the same assetbundle (means that assetbundle is already decompressed)
+            var shouldDelete = false;
+            using (var fileStream = File.OpenRead(outputPath))
+            {
+                if (hash.AsSpan().SequenceEqual(HashingHelper.HashStream(fileStream)))
+                {
+                    metadata.ShouldNotDecompress = true;
+                    MetadataManager.Instance.AddMetadata(metadata);
+
+                    shouldDelete = true;
+                }
+            }
+
+            if (shouldDelete)
+            {
+                File.Delete(outputPath);
+                return false;
+            }
+
+            path = outputPath;
+
+            metadata.UncompressedAssetBundleName = outputName;
+            MetadataManager.Instance.AddMetadata(metadata);
+
+            return true;
+        }
+        catch (Exception ex)
         {
-            File.Delete(outputPath);
-            return;
+            BepInExFasterLoadAssetBundlesPatcher.Logger.LogError($"Failed to decompress a assetbundle at {path}\n{ex}");
         }
 
-        path = outputPath;
-
-        metadata.UncompressedAssetBundleName = outputName;
-        MetadataManager.Instance.AddMetadata(metadata);
+        return false;
     }
 }
