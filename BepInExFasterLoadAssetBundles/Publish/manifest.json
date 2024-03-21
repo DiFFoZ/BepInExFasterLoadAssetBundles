@@ -1,0 +1,10 @@
+{
+    "name": "BepInEx_Faster_Load_AssetBundles_Patcher",
+    "version_number": "0.0.0",
+    "website_url": "https://github.com/DiFFoZ/BepInExFasterLoadAssetBundles",
+    "description": "Makes start up loading time faster",
+    "dependencies":
+    [
+        "BepInEx-BepInExPack-5.4.2100"
+    ]
+}

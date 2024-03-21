@@ -1,0 +1,66 @@
+name: Publish mod in Thunderstore
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Mod Version (SemVer: https://semver.org)'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Update version
+        run: "sed -i \"s#<Version>0.0.0</Version>#<Version>${{ github.event.inputs.version }}</Version>#\" BepInExFasterLoadAssetBundles/BepInExFasterLoadAssetBundles.csproj"  
+
+      - name: Update modpack version
+        run: sed -i "s#0.0.0#${{ github.event.inputs.version }}#" BepInExFasterLoadAssetBundles/Publish/manifest.json
+
+      - name: Build
+        run: dotnet build BepInExFasterLoadAssetBundles/BepInExFasterLoadAssetBundles.csproj --configuration Release --no-restore
+
+      - name: Zip files
+        run: |
+          mkdir -p ./release/BepInEx/patchers/BepInExFasterLoadAssetBundles
+          mv ./BepInExFasterLoadAssetBundles/bin/Release/netstandard2.1/* ./release/BepInEx/patchers/BepInExFasterLoadAssetBundles
+          mv ./release/BepInEx/patchers/BepInExFasterLoadAssetBundles/icon.png ./release
+          mv ./release/BepInEx/patchers/BepInExFasterLoadAssetBundles/manifest.json ./release
+          mv ./*.md ./release
+          cd ./release
+          zip -r modpack.zip * -x ./BepInEx/patchers/BepInExFasterLoadAssetBundles/BepInExFasterLoadAssetBundles.deps.json
+
+      - name: Upload to Thunderstore
+        uses: GreenTF/upload-thunderstore-package@v4.3
+        with:
+          token: ${{ secrets.THUNDERSTORE_TOKEN }}
+          community: lethal-company
+          namespace: DiFFoZ
+          name: BepInEx_Faster_Load_AssetBundles_Patcher
+          description: Makes start up loading time faster
+          version: ${{ github.event.inputs.version }}
+          file: ./release/modpack.zip
+          repo: thunderstore.io
+          website: https://github.com/DiFFoZ/BepInExFasterLoadAssetBundles
+          deps: |
+            BepInEx-BepInExPack@5.4.2100
+      
+      - name: Create release
+        uses: actions/create-release@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          release_name: BepInExFasterLoadAssetBundles release v${{ github.event.inputs.version }}
