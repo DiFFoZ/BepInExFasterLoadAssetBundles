@@ -27,6 +27,10 @@
     <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" IncludeAssets="compile" PrivateAssets="all" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\CHANGELOG.md" />
+  </ItemGroup>
+
   <Target Name="CopyPublishFiles" AfterTargets="AfterBuild">
     <ItemGroup>
       <PublishFiles Include="$(MSBuildThisFileDirectory)Publish/*.*" />

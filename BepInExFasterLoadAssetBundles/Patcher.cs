@@ -12,20 +12,23 @@ namespace BepInExFasterLoadAssetBundles;
 [HarmonyPatch]
 internal static class Patcher
 {
-    private static string OutputFolder { get; } = Path.Combine(Paths.CachePath, "AssetBundles");
-    private static AssetBundleManager AssetBundleManager { get; set; } = null!;
+    internal static AssetBundleManager AssetBundleManager { get; private set; } = null!;
+    internal static MetadataManager MetadataManager { get; private set; } = null!;
 
     [HarmonyPatch(typeof(Chainloader), nameof(Chainloader.Initialize))]
     [HarmonyPostfix]
-    public static void ChainloaderInit()
+    public static void ChainloaderInitialized()
     {
-        if (!Directory.Exists(OutputFolder))
+        // BepInEx is ready to load plugins, patching Unity assetbundles
+
+        var outputFolder = Path.Combine(Paths.CachePath, "AssetBundles");
+        if (!Directory.Exists(outputFolder))
         {
-            Directory.CreateDirectory(OutputFolder);
+            Directory.CreateDirectory(outputFolder);
         }
 
-        new MetadataManager(Path.Combine(OutputFolder, "metadata.json"));
-        AssetBundleManager = new(OutputFolder);
+        AssetBundleManager = new(outputFolder);
+        MetadataManager = new MetadataManager(Path.Combine(outputFolder, "metadata.json"));
 
         var thisType = typeof(Patcher);
         var harmony = BepInExFasterLoadAssetBundlesPatcher.Harmony;
@@ -38,25 +41,6 @@ internal static class Patcher
             prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast))));*/
     }
 
-    /*public static void LoadAssetBundleFromStreamFast(ref Stream stream)
-    {
-        var tempPath = Path.GetTempPath();
-        using var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose);
-
-        stream.CopyTo(fileStream);
-        fileStream.Position = 0;
-
-        using var sha1 = SHA1.Create();
-        var hash = sha1.ComputeHash(fileStream);
-        fileStream.Position = 0;
-
-        var outputPath = Path.Combine(OutputFolder, Path.GetFileName(HashToString(hash)));
-        if (File.Exists(outputPath))
-        {
-            return AssetBundle.LoadFromFile(outputPath);
-        }
-    }*/
-
     public static void LoadAssetBundleFromFileFast(ref string path)
     {
         // mod trying to load assetbundle at null path, buh
@@ -66,7 +50,15 @@ internal static class Patcher
         }
 
         var tempPath = string.Copy(path);
-        var success = AssetBundleManager.TryRecompressAssetBundle(ref tempPath);
+        var success = false;
+        try
+        {
+            success = AssetBundleManager.TryRecompressAssetBundle(ref tempPath);
+        }
+        catch (Exception ex)
+        {
+            BepInExFasterLoadAssetBundlesPatcher.Logger.LogError($"Failed to decompress assetbundle\n{ex}");
+        }
 
         if (success)
         {

@@ -6,23 +6,21 @@ using System.Security.Cryptography;
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal class HashingHelper
 {
-    public static byte[] HashStream(Stream stream)
+    public static byte[] HashFile(string path)
     {
-        using var sha1 = SHA1.Create();
-        return sha1.ComputeHash(stream);
+        using var fileStream = File.OpenRead(path);
+        using var sha1 = new SHA1Managed();
+        return sha1.ComputeHash(fileStream);
     }
 
     public static string HashToString(byte[] hash)
     {
         Span<char> chars = stackalloc char[40];
 
-        Span<char> hexs = stackalloc char[2];
         for (var i = 0; i < hash.Length; i++)
         {
             var b = hash[i];
-
-            b.TryFormat(hexs, out var charsWritten, "X2");
-            hexs.CopyTo(chars[(i * 2)..]);
+            b.TryFormat(chars[(i * 2)..], out var charsWritten, "X2");
         }
 
         return chars.ToString();

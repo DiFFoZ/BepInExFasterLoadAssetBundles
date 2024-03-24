@@ -13,6 +13,9 @@ public class BepInExFasterLoadAssetBundlesPatcher
     // Cannot be renamed, method name is important
     public static void Finish()
     {
+        // Finish() - all assemblies are patched and loaded, should be now safe to access other classes (but still via reflection)
+
+        // let Harmony init other classes, because it's now safe to load them
         Harmony.PatchAll(typeof(BepInExFasterLoadAssetBundlesPatcher).Assembly);
     }
 
