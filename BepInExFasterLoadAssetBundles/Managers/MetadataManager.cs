@@ -68,7 +68,7 @@ internal class MetadataManager
         }
         catch (Exception ex)
         {
-            BepInExFasterLoadAssetBundlesPatcher.Logger.LogError($"Failed to deserialize metadata.json file\n{ex}");
+            Patcher.Logger.LogError($"Failed to deserialize metadata.json file\n{ex}");
             m_Metadata = [];
             return;
         }
@@ -133,6 +133,7 @@ internal class MetadataManager
                 continue;
             }
 
+            Patcher.Logger.LogInfo($"Deleting unused asset bundle cache {metadata.UncompressedAssetBundleName}");
             Patcher.AssetBundleManager.DeleteCachedAssetBundle(Path.Combine(Patcher.AssetBundleManager.CachePath, metadata.UncompressedAssetBundleName));
         }
     }

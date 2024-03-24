@@ -35,7 +35,7 @@ internal class AssetBundleManager
             var newPath = Path.Combine(CachePath, metadata.UncompressedAssetBundleName);
             if (File.Exists(newPath))
             {
-                BepInExFasterLoadAssetBundlesPatcher.Logger.LogDebug(
+                Patcher.Logger.LogDebug(
                     $"Found uncompressed bundle {metadata.UncompressedAssetBundleName}, loading it instead of {originalFileName}");
                 path = newPath;
 
@@ -45,7 +45,7 @@ internal class AssetBundleManager
                 return true;
             }
 
-            BepInExFasterLoadAssetBundlesPatcher.Logger.LogWarning($"Failed to find decompressed assetbundle at {newPath}. Probably it was deleted?");
+            Patcher.Logger.LogWarning($"Failed to find decompressed assetbundle at {newPath}. Probably it was deleted?");
         }
 
         metadata = new()
@@ -62,14 +62,14 @@ internal class AssetBundleManager
 
         if (op.result is not AssetBundleLoadResult.Success)
         {
-            BepInExFasterLoadAssetBundlesPatcher.Logger.LogWarning($"Failed to decompress a assetbundle at {path}\n{op.humanReadableResult}");
+            Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at {path}\n{op.humanReadableResult}");
             return false;
         }
 
         // check if unity returned the same assetbundle (means that assetbundle is already decompressed)
         if (hash.AsSpan().SequenceEqual(HashingHelper.HashFile(outputPath)))
         {
-            BepInExFasterLoadAssetBundlesPatcher.Logger.LogDebug($"Assetbundle {originalFileName} is already uncompressed, adding to ignore list");
+            Patcher.Logger.LogDebug($"Assetbundle {originalFileName} is already uncompressed, adding to ignore list");
 
             metadata.ShouldNotDecompress = true;
             Patcher.MetadataManager.SaveMetadata(metadata);
@@ -83,7 +83,7 @@ internal class AssetBundleManager
         metadata.UncompressedAssetBundleName = outputName;
         Patcher.MetadataManager.SaveMetadata(metadata);
 
-        BepInExFasterLoadAssetBundlesPatcher.Logger.LogDebug($"Loading uncompressed bundle {outputName} instead of {originalFileName}");
+        Patcher.Logger.LogDebug($"Loading uncompressed bundle {outputName} instead of {originalFileName}");
 
         return true;
     }
@@ -93,7 +93,7 @@ internal class AssetBundleManager
         FileHelper.TryDeleteFile(path, out var fileException);
         if (fileException != null)
         {
-            BepInExFasterLoadAssetBundlesPatcher.Logger.LogError($"Failed to delete uncompressed assetbundle\n{fileException}");
+            Patcher.Logger.LogError($"Failed to delete uncompressed assetbundle\n{fileException}");
         }
     }
 }

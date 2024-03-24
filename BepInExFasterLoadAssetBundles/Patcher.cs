@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using BepInEx;
 using BepInEx.Bootstrap;
+using BepInEx.Logging;
 using BepInExFasterLoadAssetBundles.Helpers;
 using BepInExFasterLoadAssetBundles.Managers;
 using HarmonyLib;
@@ -12,6 +13,7 @@ namespace BepInExFasterLoadAssetBundles;
 [HarmonyPatch]
 internal static class Patcher
 {
+    internal static ManualLogSource Logger { get; private set; } = null!;
     internal static AssetBundleManager AssetBundleManager { get; private set; } = null!;
     internal static MetadataManager MetadataManager { get; private set; } = null!;
 
@@ -20,6 +22,8 @@ internal static class Patcher
     public static void ChainloaderInitialized()
     {
         // BepInEx is ready to load plugins, patching Unity assetbundles
+
+        Logger = BepInEx.Logging.Logger.CreateLogSource(nameof(BepInExFasterLoadAssetBundlesPatcher));
 
         var outputFolder = Path.Combine(Paths.CachePath, "AssetBundles");
         if (!Directory.Exists(outputFolder))
@@ -57,7 +61,7 @@ internal static class Patcher
         }
         catch (Exception ex)
         {
-            BepInExFasterLoadAssetBundlesPatcher.Logger.LogError($"Failed to decompress assetbundle\n{ex}");
+            Logger.LogError($"Failed to decompress assetbundle\n{ex}");
         }
 
         if (success)

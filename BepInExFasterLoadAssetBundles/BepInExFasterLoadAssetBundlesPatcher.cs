@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using BepInEx.Logging;
 using HarmonyLib;
 using Mono.Cecil;
 
@@ -8,7 +7,6 @@ namespace BepInExFasterLoadAssetBundles;
 public class BepInExFasterLoadAssetBundlesPatcher
 {
     internal static Harmony Harmony { get; } = new(nameof(BepInExFasterLoadAssetBundlesPatcher));
-    internal static ManualLogSource Logger { get; } = BepInEx.Logging.Logger.CreateLogSource(nameof(BepInExFasterLoadAssetBundlesPatcher));
 
     // Cannot be renamed, method name is important
     public static void Finish()
