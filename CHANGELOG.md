@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cached assetbundle will be deleted after 3 days of inactive usage.
 ### Changed
 - Lock the metadata file when updating it.
+### Fixed
+- No logs are printed.
 
 ## [0.0.2] 2024-03-22
 ### Changed
