@@ -83,7 +83,7 @@ internal static class Patcher
             return;
         }
 
-        var tempFilePath = fileStream.Name;
+        var previousPosition = fileStream.Position;
 
         try
         {
@@ -96,9 +96,8 @@ internal static class Patcher
         catch (Exception ex)
         {
             Logger.LogError($"Failed to decompress assetbundle\n{ex}");
-        }
 
-        // stream is disposed, returning new stream
-        stream = new FileStream(tempFilePath, FileMode.Open, FileAccess.Read, FileShare.None);
+            fileStream.Position = previousPosition;
+        }
     }
 }
