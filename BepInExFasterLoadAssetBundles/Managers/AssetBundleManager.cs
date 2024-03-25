@@ -22,7 +22,7 @@ internal class AssetBundleManager
     public bool TryRecompressAssetBundle(ref string path)
     {
         var originalFileName = Path.GetFileNameWithoutExtension(path);
-        byte[] hash = HashingHelper.HashFile(path);
+        var hash = HashingHelper.HashFile(path);
 
         var metadata = Patcher.MetadataManager.FindMetadataByHash(hash);
         if (metadata != null)
@@ -86,6 +86,20 @@ internal class AssetBundleManager
         Patcher.Logger.LogDebug($"Loading uncompressed bundle {outputName} instead of {originalFileName}");
 
         return true;
+    }
+
+    public FileStream? TryRecompressAssetBundle(FileStream stream)
+    {
+        var path = string.Copy(stream.Name);
+
+        stream.Dispose();
+
+        if (TryRecompressAssetBundle(ref path))
+        {
+            return File.OpenRead(path);
+        }
+
+        return null;
     }
 
     public void DeleteCachedAssetBundle(string path)

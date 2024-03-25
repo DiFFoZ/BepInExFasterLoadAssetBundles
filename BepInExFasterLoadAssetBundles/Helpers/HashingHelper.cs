@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
@@ -8,9 +9,21 @@ internal class HashingHelper
 {
     public static byte[] HashFile(string path)
     {
-        using var fileStream = File.OpenRead(path);
+        const int c_BufferSize = 81920;
+
+        using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None, c_BufferSize, FileOptions.SequentialScan);
         using var sha1 = new SHA1Managed();
-        return sha1.ComputeHash(fileStream);
+
+        var array = ArrayPool<byte>.Shared.Rent(c_BufferSize);
+        int readBytes;
+        while ((readBytes = fileStream.Read(array, 0, c_BufferSize)) > 0)
+        {
+            sha1.TransformBlock(array, 0, readBytes, array, 0);
+        }
+
+        sha1.TransformFinalBlock([], 0, 0);
+
+        return sha1.Hash;
     }
 
     public static string HashToString(byte[] hash)
