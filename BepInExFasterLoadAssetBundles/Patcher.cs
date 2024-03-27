@@ -23,7 +23,8 @@ internal static class Patcher
 
         Logger = BepInEx.Logging.Logger.CreateLogSource(nameof(BepInExFasterLoadAssetBundlesPatcher));
 
-        var outputFolder = Path.Combine(Paths.CachePath, "AssetBundles");
+        var persistentDataPath = Application.persistentDataPath;
+        var outputFolder = Path.Combine(persistentDataPath, "Cache", "AssetBundles");
         if (!Directory.Exists(outputFolder))
         {
             Directory.CreateDirectory(outputFolder);
