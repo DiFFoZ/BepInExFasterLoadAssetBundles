@@ -91,13 +91,14 @@ internal static class Patcher
             if (decompressedStream != null)
             {
                 stream = decompressedStream;
+                return;
             }
         }
         catch (Exception ex)
         {
             Logger.LogError($"Failed to decompress assetbundle\n{ex}");
-
-            fileStream.Position = previousPosition;
         }
+
+        fileStream.Position = previousPosition;
     }
 }
