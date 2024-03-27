@@ -1,10 +1,8 @@
 ﻿using System;
 using System.IO;
-using System.Threading;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
-using BepInExFasterLoadAssetBundles.Helpers;
 using BepInExFasterLoadAssetBundles.Managers;
 using HarmonyLib;
 using UnityEngine;
@@ -37,12 +35,20 @@ internal static class Patcher
         var thisType = typeof(Patcher);
         var harmony = BepInExFasterLoadAssetBundlesPatcher.Harmony;
 
+        // file
         harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromFile_Internal)),
             prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast))));
 
-        // todo
-        /*harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromStreamInternal)),
-            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast))));*/
+        harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromFileAsync_Internal)),
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast))));
+
+
+        // streams
+        harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromStreamInternal)),
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast))));
+
+        harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromStreamAsyncInternal)),
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast))));
     }
 
     public static void LoadAssetBundleFromFileFast(ref string path)
@@ -68,5 +74,31 @@ internal static class Patcher
         {
             path = tempPath;
         }
+    }
+
+    public static void LoadAssetBundleFromStreamFast(ref Stream stream)
+    {
+        if (stream is not FileStream fileStream)
+        {
+            return;
+        }
+
+        var previousPosition = fileStream.Position;
+
+        try
+        {
+            var decompressedStream = AssetBundleManager.TryRecompressAssetBundle(fileStream);
+            if (decompressedStream != null)
+            {
+                stream = decompressedStream;
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to decompress assetbundle\n{ex}");
+        }
+
+        fileStream.Position = previousPosition;
     }
 }

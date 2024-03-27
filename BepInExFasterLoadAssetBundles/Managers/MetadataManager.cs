@@ -40,15 +40,18 @@ internal class MetadataManager
 
     public void SaveMetadata(Metadata metadata)
     {
-        var index = m_Metadata.FindIndex(m => m.OriginalAssetBundleHash == metadata.OriginalAssetBundleHash);
+        lock (m_Lock)
+        {
+            var index = m_Metadata.FindIndex(m => m.OriginalAssetBundleHash == metadata.OriginalAssetBundleHash);
 
-        if (index == -1)
-        {
-            m_Metadata.Add(metadata);
-        }
-        else
-        {
-            m_Metadata[index] = metadata;
+            if (index == -1)
+            {
+                m_Metadata.Add(metadata);
+            }
+            else
+            {
+                m_Metadata[index] = metadata;
+            }
         }
 
         SaveFile();
