@@ -106,7 +106,7 @@ internal class AssetBundleManager
         }
 
         var op = AssetBundle.RecompressAssetBundleAsync(path, outputPath,
-            BuildCompression.UncompressedRuntime, 0, ThreadPriority.High);
+            BuildCompression.UncompressedRuntime, 0, ThreadPriority.Normal);
 
         await op.WaitCompletionAsync();
 
