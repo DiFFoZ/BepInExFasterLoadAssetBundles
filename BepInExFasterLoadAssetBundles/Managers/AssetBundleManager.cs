@@ -97,11 +97,11 @@ internal class AssetBundleManager
         {
             try
             {
-                using var tempStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+                using var tempStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             }
             catch (IOException)
             {
-                await Task.Delay(100);
+                await Task.Delay(1000);
             }
         }
 
