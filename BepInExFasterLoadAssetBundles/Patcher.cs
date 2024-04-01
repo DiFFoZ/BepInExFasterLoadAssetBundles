@@ -118,6 +118,7 @@ internal static class Patcher
             if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
             {
                 __result = AssetBundle.LoadFromFileAsync(path);
+                return false;
             }
         }
         catch (Exception ex)
