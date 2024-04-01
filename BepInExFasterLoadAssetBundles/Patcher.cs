@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using BepInExFasterLoadAssetBundles.Helpers;
@@ -36,24 +35,25 @@ internal static class Patcher
 
         var thisType = typeof(Patcher);
         var harmony = BepInExFasterLoadAssetBundlesPatcher.Harmony;
+        var binding = AccessTools.all;
 
         // file
+        var patchMethod = new HarmonyMethod(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast), binding));
         harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromFile_Internal)),
-            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast))));
+            prefix: patchMethod);
 
         harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromFileAsync_Internal)),
-            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast))));
-
+            prefix: patchMethod);
 
         // streams
         harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromStreamInternal)),
-            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast))));
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast), binding)));
 
         harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromStreamAsyncInternal)),
-            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast))));
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamAsyncFast), binding)));
     }
 
-    public static void LoadAssetBundleFromFileFast(ref string path)
+    private static void LoadAssetBundleFromFileFast(ref string path)
     {
         // mod trying to load assetbundle at null path, buh
         if (path == null)
@@ -78,7 +78,7 @@ internal static class Patcher
         }
     }
 
-    public static void LoadAssetBundleFromStreamFast(ref Stream stream)
+    private static void LoadAssetBundleFromStreamFast(ref Stream stream)
     {
         if (stream is not FileStream fileStream)
         {
@@ -89,10 +89,9 @@ internal static class Patcher
 
         try
         {
-            var decompressedStream = AssetBundleManager.TryRecompressAssetBundle(fileStream);
-            if (decompressedStream != null)
+            if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
             {
-                stream = decompressedStream;
+                stream = File.OpenRead(path);
                 return;
             }
         }
@@ -102,5 +101,31 @@ internal static class Patcher
         }
 
         fileStream.Position = previousPosition;
+    }
+
+    private static bool LoadAssetBundleFromStreamAsyncFast(Stream stream, out AssetBundleCreateRequest? __result)
+    {
+        __result = null;
+        if (stream is not FileStream fileStream)
+        {
+            return true;
+        }
+
+        var previousPosition = fileStream.Position;
+
+        try
+        {
+            if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
+            {
+                __result = AssetBundle.LoadFromFileAsync(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to decompress assetbundle\n{ex}");
+        }
+
+        fileStream.Position = previousPosition;
+        return true;
     }
 }

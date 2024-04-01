@@ -23,25 +23,17 @@ internal class AssetBundleManager
 
     public bool TryRecompressAssetBundle(ref string path)
     {
-        return TryRecompressAssetBundleInternal(ref path, null);
+        return TryRecompressAssetBundleInternal(ref path, HashingHelper.HashFile(path));
     }
 
-    public FileStream? TryRecompressAssetBundle(FileStream stream)
+    public bool TryRecompressAssetBundle(FileStream stream, out string path)
     {
-        var path = string.Copy(stream.Name);
-
-        if (TryRecompressAssetBundleInternal(ref path, HashingHelper.HashStream(stream)))
-        {
-            return File.OpenRead(path);
-        }
-
-        return null;
+        path = string.Copy(stream.Name);
+        return TryRecompressAssetBundleInternal(ref path, HashingHelper.HashStream(stream));
     }
 
-    public bool TryRecompressAssetBundleInternal(ref string path, byte[]? hash)
+    public bool TryRecompressAssetBundleInternal(ref string path, byte[] hash)
     {
-        hash ??= HashingHelper.HashFile(path);
-
         var metadata = Patcher.MetadataManager.FindMetadataByHash(hash);
         if (metadata != null)
         {
@@ -92,18 +84,7 @@ internal class AssetBundleManager
         var outputPath = Path.Combine(CachePath, outputName);
 
         // when loading assetbundle async via stream, the file can be still in use. Wait a bit for that
-        var tries = 5;
-        while (--tries > 0)
-        {
-            try
-            {
-                using var tempStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            }
-            catch (IOException)
-            {
-                await Task.Delay(1000);
-            }
-        }
+        await FileHelper.RetryUntilFileIsClosedAsync(path, 5);
 
         await AsyncHelper.SwitchToMainThread();
 
@@ -117,6 +98,8 @@ internal class AssetBundleManager
             Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at \"{path}\"\n{op.humanReadableResult}");
             return;
         }
+
+        await Task.Yield();
 
         // check if unity returned the same assetbundle (means that assetbundle is already decompressed)
         if (hash.AsSpan().SequenceEqual(HashingHelper.HashFile(outputPath)))
