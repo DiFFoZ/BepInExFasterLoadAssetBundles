@@ -3,6 +3,7 @@ using System.IO;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
+using BepInExFasterLoadAssetBundles.Helpers;
 using BepInExFasterLoadAssetBundles.Managers;
 using HarmonyLib;
 using UnityEngine;
@@ -20,7 +21,7 @@ internal static class Patcher
     public static void ChainloaderInitialized()
     {
         // BepInEx is ready to load plugins, patching Unity assetbundles
-
+        AsyncHelper.InitUnitySynchronizationContext();
         Logger = BepInEx.Logging.Logger.CreateLogSource(nameof(BepInExFasterLoadAssetBundlesPatcher));
 
         var persistentDataPath = Application.persistentDataPath;
