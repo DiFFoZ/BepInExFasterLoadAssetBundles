@@ -1,19 +1,10 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using UnityEngine;
 
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal static class AsyncOperationHelper
 {
-    public static void WaitUntilOperationComplete<T>(T op) where T : AsyncOperation
-    {
-        while (!op.isDone)
-        {
-            Thread.Sleep(100);
-        }
-    }
-
     public static AsyncOperationAwaiter WaitCompletionAsync<T>(this T op) where T : AsyncOperation
     {
         return new AsyncOperationAwaiter(op);

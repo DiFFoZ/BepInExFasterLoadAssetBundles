@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] 2024-04-04
+### Added
+- Check of drive space before trying to decompress.
+### Changed
+- Moved cache folder to the game installation. 
+    - The old cache folder will be deleted.
+- Switching to main thread when decompress the bundle.
+- Loading of uncompressed bundle to make them load faster.
+### Fixed
+- Exception that happens if mod trying to load non exists bundle.
+
+## [0.3.1] 2024-03-28
+### Fixed
+- Exception that prevents to decompress bundle.
+
 ## [0.3.0] 2024-03-28
 ### Changed
 - Cache folder is now global (`%userprofile%\AppData\LocalLow\<companyname>\<productname>`).

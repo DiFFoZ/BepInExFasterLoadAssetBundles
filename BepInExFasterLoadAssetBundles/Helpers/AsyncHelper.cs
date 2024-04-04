@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
-using static BepInExFasterLoadAssetBundles.Helpers.AsyncOperationHelper;
 
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal static class AsyncHelper
@@ -33,6 +32,7 @@ internal static class AsyncHelper
     }
 
     public static SwitchToMainThreadAwaiter SwitchToMainThread() => new();
+    public static SwitchToThreadPoolAwaiter SwitchToThreadPool() => new();
 
     public readonly struct SwitchToMainThreadAwaiter : ICriticalNotifyCompletion
     {
@@ -40,7 +40,6 @@ internal static class AsyncHelper
 
         public readonly SwitchToMainThreadAwaiter GetAwaiter() => this;
         public readonly bool IsCompleted => Thread.CurrentThread.ManagedThreadId == s_MainThreadId;
-
         public void GetResult()
         { }
 
@@ -52,6 +51,33 @@ internal static class AsyncHelper
         public readonly void UnsafeOnCompleted(Action continuation)
         {
             s_SynchronizationContext.Post(s_OnPostAction, continuation);
+        }
+
+        private static void OnPost(object state)
+        {
+            var action = state as Action;
+            action?.Invoke();
+        }
+    }
+
+    public readonly struct SwitchToThreadPoolAwaiter : ICriticalNotifyCompletion
+    {
+        private static readonly WaitCallback s_OnPostAction = OnPost;
+
+        public readonly SwitchToThreadPoolAwaiter GetAwaiter() => this;
+        public readonly bool IsCompleted => false;
+
+        public void GetResult()
+        { }
+
+        public readonly void OnCompleted(Action continuation)
+        {
+            ThreadPool.QueueUserWorkItem(s_OnPostAction, continuation);
+        }
+
+        public readonly void UnsafeOnCompleted(Action continuation)
+        {
+            ThreadPool.UnsafeQueueUserWorkItem(s_OnPostAction, continuation);
         }
 
         private static void OnPost(object state)
