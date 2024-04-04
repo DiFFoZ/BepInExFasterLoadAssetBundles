@@ -34,6 +34,11 @@ internal class AssetBundleManager
 
     public bool TryRecompressAssetBundleInternal(ref string path, byte[] hash)
     {
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
         var metadata = Patcher.MetadataManager.FindMetadataByHash(hash);
         if (metadata != null)
         {
