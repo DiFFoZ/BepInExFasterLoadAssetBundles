@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BepInExFasterLoadAssetBundles.Helpers;
 using BepInExFasterLoadAssetBundles.Models;
@@ -18,6 +20,24 @@ internal class AssetBundleManager
         {
             Directory.CreateDirectory(CachePath);
             return;
+        }
+
+        DeleteTempFiles();
+    }
+
+    private void DeleteTempFiles()
+    {
+        // unity creates tmp files when decompress
+        try
+        {
+            foreach (var tempFile in Directory.EnumerateFiles(CachePath, "*.tmp"))
+            {
+                File.Delete(tempFile);
+            }
+        }
+        catch (Exception ex)
+        {
+            Patcher.Logger.LogError($"Failed to delete temp files\n{ex}");
         }
     }
 
