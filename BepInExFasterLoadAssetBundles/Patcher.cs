@@ -23,8 +23,10 @@ internal static class Patcher
         AsyncHelper.InitUnitySynchronizationContext();
         Logger = BepInEx.Logging.Logger.CreateLogSource(nameof(BepInExFasterLoadAssetBundlesPatcher));
 
-        var persistentDataPath = Application.persistentDataPath;
-        var outputFolder = Path.Combine(persistentDataPath, "Cache", "AssetBundles");
+        DeleteOldCache();
+
+        var dataPath = new DirectoryInfo(Application.dataPath).Parent.FullName;
+        var outputFolder = Path.Combine(dataPath, "Cache", "AssetBundles");
         if (!Directory.Exists(outputFolder))
         {
             Directory.CreateDirectory(outputFolder);
@@ -65,6 +67,24 @@ internal static class Patcher
 
         harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromStreamAsyncInternal)),
             prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamAsyncFast), allBinding)));
+    }
+
+    // Added 2024-04-04, can be removed 2024-05-04
+    private static void DeleteOldCache()
+    {
+        try
+        {
+            var persistentDataPath = Application.persistentDataPath;
+            var outputFolder = Path.Combine(persistentDataPath, "Cache", "AssetBundles");
+            if (Directory.Exists(outputFolder))
+            {
+                Directory.Delete(outputFolder, true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to delete old cache\n{ex}");
+        }
     }
 
     private static void LoadAssetBundleFromFileFast(ref string path)
