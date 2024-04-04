@@ -33,24 +33,38 @@ internal static class Patcher
         AssetBundleManager = new(outputFolder);
         MetadataManager = new MetadataManager(Path.Combine(outputFolder, "metadata.json"));
 
+        Patch();
+    }
+
+    private static void Patch()
+    {
         var thisType = typeof(Patcher);
         var harmony = BepInExFasterLoadAssetBundlesPatcher.Harmony;
-        var binding = AccessTools.all;
+        var allBinding = AccessTools.all;
 
         // file
-        var patchMethod = new HarmonyMethod(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast), binding));
-        harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromFile_Internal)),
-            prefix: patchMethod);
+        var patchMethod = new HarmonyMethod(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast), allBinding));
+        var assetBundleType = typeof(AssetBundle);
 
-        harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromFileAsync_Internal)),
-            prefix: patchMethod);
+        string[] loadNames = [nameof(AssetBundle.LoadFromFile), nameof(AssetBundle.LoadFromFileAsync)];
+        foreach (var loadName in loadNames)
+        {
+            harmony.Patch(AccessTools.Method(assetBundleType, loadName, [typeof(string)]),
+                prefix: patchMethod);
+
+            harmony.Patch(AccessTools.Method(assetBundleType, loadName, [typeof(string), typeof(uint)]),
+               prefix: patchMethod);
+
+            harmony.Patch(AccessTools.Method(assetBundleType, loadName, [typeof(string), typeof(uint), typeof(ulong)]),
+               prefix: patchMethod);
+        }
 
         // streams
-        harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromStreamInternal)),
-            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast), binding)));
+        harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromStreamInternal)),
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamFast), allBinding)));
 
-        harmony.Patch(AccessTools.Method(typeof(AssetBundle), nameof(AssetBundle.LoadFromStreamAsyncInternal)),
-            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamAsyncFast), binding)));
+        harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromStreamAsyncInternal)),
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamAsyncFast), allBinding)));
     }
 
     private static void LoadAssetBundleFromFileFast(ref string path)
@@ -62,19 +76,16 @@ internal static class Patcher
         }
 
         var tempPath = string.Copy(path);
-        var success = false;
         try
         {
-            success = AssetBundleManager.TryRecompressAssetBundle(ref tempPath);
+            if (AssetBundleManager.TryRecompressAssetBundle(ref tempPath))
+            {
+                path = tempPath;
+            }
         }
         catch (Exception ex)
         {
             Logger.LogError($"Failed to decompress assetbundle\n{ex}");
-        }
-
-        if (success)
-        {
-            path = tempPath;
         }
     }
 
@@ -117,7 +128,7 @@ internal static class Patcher
         {
             if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
             {
-                __result = AssetBundle.LoadFromFileAsync(path);
+                __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
                 return false;
             }
         }
