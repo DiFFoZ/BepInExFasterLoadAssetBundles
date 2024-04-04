@@ -57,9 +57,16 @@ internal class AssetBundleManager
             Patcher.Logger.LogWarning($"Failed to find decompressed assetbundle at \"{newPath}\". Probably it was deleted?");
         }
 
-        var nonRefPath = path;
-        AsyncHelper.Schedule(() => DecompressAssetBundleAsync(nonRefPath, hash));
-
+        if (DriveHelper.HasDriveSpaceOnPath(CachePath, 10))
+        {
+            var nonRefPath = path;
+            AsyncHelper.Schedule(() => DecompressAssetBundleAsync(nonRefPath, hash));
+        }
+        else
+        {
+            Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the drive space is less than 10GB");
+        }
+       
         return false;
     }
 
