@@ -99,7 +99,7 @@ internal class AssetBundleManager
         }
         else
         {
-            Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the drive space is less than 10GB");
+            Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the free drive space is less than 10GB");
         }
        
         return false;
@@ -171,14 +171,20 @@ internal class AssetBundleManager
         await AsyncHelper.SwitchToMainThread();
 
         var op = AssetBundle.RecompressAssetBundleAsync(path, outputPath,
-            BuildCompression.UncompressedRuntime, 0, UnityEngine.ThreadPriority.Normal);
+            BuildCompression.UncompressedRuntime, 0, ThreadPriority.Normal);
 
         await op.WaitCompletionAsync();
+
+        // we are in main thread, load results locally to make unity happy
+        var result = op.result;
+        var humanReadableResult = op.humanReadableResult;
+        var success = op.success;
+
         await AsyncHelper.SwitchToThreadPool();
 
-        if (op.result is not AssetBundleLoadResult.Success || !op.success)
+        if (result is not AssetBundleLoadResult.Success || !success)
         {
-            Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at \"{path}\"\nResult: {op.result}, {op.humanReadableResult}");
+            Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at \"{path}\"\nResult: {result}, {humanReadableResult}");
             return;
         }
 
