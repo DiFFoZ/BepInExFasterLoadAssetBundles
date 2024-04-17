@@ -109,48 +109,35 @@ internal static class Patcher
         }
     }
 
-    private static void LoadAssetBundleFromStreamFast(ref Stream stream)
+    private static bool LoadAssetBundleFromStreamFast(Stream stream, ref AssetBundle? __result)
     {
-        if (stream is not FileStream fileStream)
+        if (stream is FileStream fileStream && HandleFileStreamBundle(fileStream, out var path))
         {
-            return;
+            __result = AssetBundle.LoadFromFile_Internal(path, 0, 0);
+            return false;
         }
 
-        var previousPosition = fileStream.Position;
-
-        try
-        {
-            if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
-            {
-                stream = File.OpenRead(path);
-                return;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError($"Failed to decompress assetbundle\n{ex}");
-        }
-
-        fileStream.Position = previousPosition;
+        return true;
     }
 
-    private static bool LoadAssetBundleFromStreamAsyncFast(Stream stream, out AssetBundleCreateRequest? __result)
+    private static bool LoadAssetBundleFromStreamAsyncFast(Stream stream, ref AssetBundleCreateRequest? __result)
     {
-        __result = null;
-        if (stream is not FileStream fileStream)
+        if (stream is FileStream fileStream && HandleFileStreamBundle(fileStream, out var path))
         {
-            return true;
+            __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
+            return false;
         }
+        
+        return true;
+    }
 
+    private static bool HandleFileStreamBundle(FileStream fileStream, out string path)
+    {
         var previousPosition = fileStream.Position;
 
         try
         {
-            if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
-            {
-                __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
-                return false;
-            }
+            return AssetBundleManager.TryRecompressAssetBundle(fileStream, out path);
         }
         catch (Exception ex)
         {
@@ -158,6 +145,7 @@ internal static class Patcher
         }
 
         fileStream.Position = previousPosition;
-        return true;
+        path = null!;
+        return false;
     }
 }
