@@ -95,12 +95,11 @@ internal static class Patcher
             return;
         }
 
-        var tempPath = string.Copy(path);
         try
         {
-            if (AssetBundleManager.TryRecompressAssetBundle(ref tempPath))
+            if (AssetBundleManager.FindCachedBundleByHash(HashingHelper.HashFile(path), out var newPath))
             {
-                path = tempPath;
+                path = newPath;
             }
         }
         catch (Exception ex)
@@ -111,18 +110,18 @@ internal static class Patcher
 
     private static bool LoadAssetBundleFromStreamFast(Stream stream, ref AssetBundle? __result)
     {
-        if (stream is FileStream fileStream && HandleFileStreamBundle(fileStream, out var path))
+        if (HandleStreamBundle(stream, out var path))
         {
             __result = AssetBundle.LoadFromFile_Internal(path, 0, 0);
             return false;
         }
-
+        
         return true;
     }
 
     private static bool LoadAssetBundleFromStreamAsyncFast(Stream stream, ref AssetBundleCreateRequest? __result)
     {
-        if (stream is FileStream fileStream && HandleFileStreamBundle(fileStream, out var path))
+        if (HandleStreamBundle(stream, out var path))
         {
             __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
             return false;
@@ -131,20 +130,20 @@ internal static class Patcher
         return true;
     }
 
-    private static bool HandleFileStreamBundle(FileStream fileStream, out string path)
+    private static bool HandleStreamBundle(Stream stream, out string path)
     {
-        var previousPosition = fileStream.Position;
+        var previousPosition = stream.Position;
 
         try
         {
-            return AssetBundleManager.TryRecompressAssetBundle(fileStream, out path);
+            return AssetBundleManager.TryRecompressAssetBundle(stream, out path);
         }
         catch (Exception ex)
         {
             Logger.LogError($"Failed to decompress assetbundle\n{ex}");
         }
 
-        fileStream.Position = previousPosition;
+        stream.Position = previousPosition;
         path = null!;
         return false;
     }
