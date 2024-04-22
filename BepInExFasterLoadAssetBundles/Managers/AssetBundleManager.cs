@@ -68,14 +68,18 @@ internal class AssetBundleManager
         }
 
         // copy stream to temp file
-        var tempFile = Path.Combine(CachePath, "temp", Guid.NewGuid().ToString("N"));
-        if (!Directory.Exists(tempFile))
+        var tempDirectory = Path.Combine(CachePath, "temp");
+        if (!Directory.Exists(tempDirectory))
         {
-            Directory.CreateDirectory(tempFile);
+            Directory.CreateDirectory(tempDirectory);
         }
 
-        using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write))
+        var name = Guid.NewGuid().ToString("N") + ".assetbundle";
+        var tempFile = Path.Combine(tempDirectory, name);
+
+        using (var fs = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write))
         {
+            stream.Seek(0, SeekOrigin.Begin);
             stream.CopyTo(fs);
         }
 
