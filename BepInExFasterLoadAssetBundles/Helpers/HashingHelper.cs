@@ -28,6 +28,8 @@ internal class HashingHelper
 
         sha1.TransformFinalBlock([], 0, 0);
 
+        ArrayPool<byte>.Shared.Return(array);
+
         return sha1.Hash;
     }
 

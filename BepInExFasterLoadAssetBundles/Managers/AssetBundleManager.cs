@@ -51,57 +51,39 @@ internal class AssetBundleManager
         }
     }
 
-    public bool TryRecompressAssetBundle(ref string path)
+    public bool TryRecompressAssetBundle(Stream stream, out string path)
     {
-        return TryRecompressAssetBundleInternal(ref path, HashingHelper.HashFile(path));
-    }
+        var hash = HashingHelper.HashStream(stream);
 
-    public bool TryRecompressAssetBundle(FileStream stream, out string path)
-    {
-        path = string.Copy(stream.Name);
-        return TryRecompressAssetBundleInternal(ref path, HashingHelper.HashStream(stream));
-    }
-
-    public bool TryRecompressAssetBundleInternal(ref string path, byte[] hash)
-    {
-        if (!File.Exists(path))
+        if (FindCachedBundleByHash(hash, out path))
         {
+            return true;
+        }
+
+        if (stream is FileStream fileStream)
+        {
+            path = string.Copy(fileStream.Name);
+            RecompressAssetBundleInternal(new(path, hash, false));
             return false;
         }
 
-        var metadata = Patcher.MetadataManager.FindMetadataByHash(hash);
-        if (metadata != null)
+        // copy stream to temp file
+        var tempDirectory = Path.Combine(CachePath, "temp");
+        if (!Directory.Exists(tempDirectory))
         {
-            if (metadata.ShouldNotDecompress || metadata.UncompressedAssetBundleName == null)
-            {
-                return false;
-            }
-
-            var newPath = Path.Combine(CachePath, metadata.UncompressedAssetBundleName);
-            if (File.Exists(newPath))
-            {
-                Patcher.Logger.LogDebug($"Loading uncompressed bundle \"{metadata.UncompressedAssetBundleName}\"");
-                path = newPath;
-
-                metadata.LastAccessTime = DateTime.Now;
-                Patcher.MetadataManager.SaveMetadata(metadata);
-
-                return true;
-            }
-
-            Patcher.Logger.LogWarning($"Failed to find decompressed assetbundle at \"{newPath}\". Probably it was deleted?");
+            Directory.CreateDirectory(tempDirectory);
         }
 
-        if (DriveHelper.HasDriveSpaceOnPath(CachePath, 10))
+        var name = Guid.NewGuid().ToString("N") + ".assetbundle";
+        var tempFile = Path.Combine(tempDirectory, name);
+
+        using (var fs = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write))
         {
-            m_WorkAssets.Enqueue(new(path, hash));
-            StartRunner();
+            stream.Seek(0, SeekOrigin.Begin);
+            stream.CopyTo(fs);
         }
-        else
-        {
-            Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the drive space is less than 10GB");
-        }
-       
+
+        RecompressAssetBundleInternal(new(tempFile, hash, true));
         return false;
     }
 
@@ -112,6 +94,57 @@ internal class AssetBundleManager
         {
             Patcher.Logger.LogError($"Failed to delete uncompressed assetbundle\n{fileException}");
         }
+    }
+
+    private bool FindCachedBundleByHash(byte[] hash, out string path)
+    {
+        path = null!;
+
+        var metadata = Patcher.MetadataManager.FindMetadataByHash(hash);
+        if (metadata == null)
+        {
+            return false;
+        }
+
+        if (metadata.ShouldNotDecompress || metadata.UncompressedAssetBundleName == null)
+        {
+            return false;
+        }
+
+        var newPath = Path.Combine(CachePath, metadata.UncompressedAssetBundleName);
+        if (!File.Exists(newPath))
+        {
+            Patcher.Logger.LogWarning($"Failed to find decompressed assetbundle at \"{newPath}\". Probably it was deleted?");
+            return false;
+        }
+
+        Patcher.Logger.LogDebug($"Loading uncompressed bundle \"{metadata.UncompressedAssetBundleName}\"");
+        path = newPath;
+
+        metadata.LastAccessTime = DateTime.Now;
+        Patcher.MetadataManager.SaveMetadata(metadata);
+
+        return true;
+    }
+
+    private void RecompressAssetBundleInternal(WorkAsset workAsset)
+    {
+        if (!File.Exists(workAsset.Path))
+        {
+            return;
+        }
+
+        if (DriveHelper.HasDriveSpaceOnPath(CachePath, 10))
+        {
+            Patcher.Logger.LogDebug($"Queued recompress of \"{Path.GetFileName(workAsset.Path)}\" assetbundle");
+
+            m_WorkAssets.Enqueue(workAsset);
+            StartRunner();
+            return;
+        }
+
+        Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the free drive space is less than 10GB");
+        return;
     }
 
     private void StartRunner()
@@ -140,7 +173,7 @@ internal class AssetBundleManager
         {
             while (m_WorkAssets.TryDequeue(out var work))
             {
-                await DecompressAssetBundleAsync(work.Path, work.Hash);
+                await DecompressAssetBundleAsync(work);
             }
         }
         finally
@@ -155,35 +188,47 @@ internal class AssetBundleManager
         }
     }
 
-    private async Task DecompressAssetBundleAsync(string path, byte[] hash)
+    private async Task DecompressAssetBundleAsync(WorkAsset workAsset)
     {
         var metadata = new Metadata()
         {
-            OriginalAssetBundleHash = HashingHelper.HashToString(hash),
+            OriginalAssetBundleHash = HashingHelper.HashToString(workAsset.Hash),
             LastAccessTime = DateTime.Now,
         };
-        var originalFileName = Path.GetFileNameWithoutExtension(path);
+        var originalFileName = Path.GetFileNameWithoutExtension(workAsset.Path);
         var outputName = originalFileName + '_' + metadata.GetHashCode() + ".assetbundle";
         var outputPath = Path.Combine(CachePath, outputName);
 
         // when loading assetbundle async via stream, the file can be still in use. Wait a bit for that
-        await FileHelper.RetryUntilFileIsClosedAsync(path, 5);
+        await FileHelper.RetryUntilFileIsClosedAsync(workAsset.Path, 5);
         await AsyncHelper.SwitchToMainThread();
 
-        var op = AssetBundle.RecompressAssetBundleAsync(path, outputPath,
-            BuildCompression.UncompressedRuntime, 0, UnityEngine.ThreadPriority.Normal);
+        var op = AssetBundle.RecompressAssetBundleAsync(workAsset.Path, outputPath,
+            BuildCompression.UncompressedRuntime, 0, ThreadPriority.Normal);
 
         await op.WaitCompletionAsync();
+
+        // we are in main thread, load results locally to make unity happy
+        var result = op.result;
+        var humanReadableResult = op.humanReadableResult;
+        var success = op.success;
+
         await AsyncHelper.SwitchToThreadPool();
 
-        if (op.result is not AssetBundleLoadResult.Success || !op.success)
+        // delete temp bundle if needed
+        if (workAsset.DeleteBundleAfterOperation)
         {
-            Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at \"{path}\"\nResult: {op.result}, {op.humanReadableResult}");
+            FileHelper.TryDeleteFile(workAsset.Path, out _);
+        }
+
+        if (result is not AssetBundleLoadResult.Success || !success)
+        {
+            Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at \"{workAsset.Path}\"\nResult: {result}, {humanReadableResult}");
             return;
         }
 
         // check if unity returned the same assetbundle (means that assetbundle is already decompressed)
-        if (hash.AsSpan().SequenceEqual(HashingHelper.HashFile(outputPath)))
+        if (workAsset.Hash.AsSpan().SequenceEqual(HashingHelper.HashFile(outputPath)))
         {
             Patcher.Logger.LogDebug($"Assetbundle \"{originalFileName}\" is already uncompressed, adding to ignore list");
 
@@ -194,19 +239,23 @@ internal class AssetBundleManager
             return;
         }
 
+        Patcher.Logger.LogDebug($"Assetbundle \"{originalFileName}\" is now uncompressed!");
+
         metadata.UncompressedAssetBundleName = outputName;
         Patcher.MetadataManager.SaveMetadata(metadata);
     }
 
     private struct WorkAsset
     {
-        public WorkAsset(string path, byte[] hash)
+        public WorkAsset(string path, byte[] hash, bool deleteBundleAfterOperation)
         {
             Path = path;
             Hash = hash;
+            DeleteBundleAfterOperation = deleteBundleAfterOperation;
         }
 
         public string Path { get; set; }
         public byte[] Hash { get; set; }
+        public bool DeleteBundleAfterOperation { get; }
     }
 }

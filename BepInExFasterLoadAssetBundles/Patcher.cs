@@ -90,17 +90,18 @@ internal static class Patcher
     private static void LoadAssetBundleFromFileFast(ref string path)
     {
         // mod trying to load assetbundle at null path, buh
-        if (path == null)
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }
 
-        var tempPath = string.Copy(path);
         try
         {
-            if (AssetBundleManager.TryRecompressAssetBundle(ref tempPath))
+            using var bundleFileStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
+
+            if (HandleStreamBundle(bundleFileStream, out var newPath))
             {
-                path = tempPath;
+                path = newPath;
             }
         }
         catch (Exception ex)
@@ -109,55 +110,43 @@ internal static class Patcher
         }
     }
 
-    private static void LoadAssetBundleFromStreamFast(ref Stream stream)
+    private static bool LoadAssetBundleFromStreamFast(Stream stream, ref AssetBundle? __result)
     {
-        if (stream is not FileStream fileStream)
+        if (HandleStreamBundle(stream, out var path))
         {
-            return;
+            __result = AssetBundle.LoadFromFile_Internal(path, 0, 0);
+            return false;
         }
-
-        var previousPosition = fileStream.Position;
-
-        try
-        {
-            if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
-            {
-                stream = File.OpenRead(path);
-                return;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError($"Failed to decompress assetbundle\n{ex}");
-        }
-
-        fileStream.Position = previousPosition;
-    }
-
-    private static bool LoadAssetBundleFromStreamAsyncFast(Stream stream, out AssetBundleCreateRequest? __result)
-    {
-        __result = null;
-        if (stream is not FileStream fileStream)
-        {
-            return true;
-        }
-
-        var previousPosition = fileStream.Position;
-
-        try
-        {
-            if (AssetBundleManager.TryRecompressAssetBundle(fileStream, out var path))
-            {
-                __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
-                return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError($"Failed to decompress assetbundle\n{ex}");
-        }
-
-        fileStream.Position = previousPosition;
+        
         return true;
+    }
+
+    private static bool LoadAssetBundleFromStreamAsyncFast(Stream stream, ref AssetBundleCreateRequest? __result)
+    {
+        if (HandleStreamBundle(stream, out var path))
+        {
+            __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
+            return false;
+        }
+        
+        return true;
+    }
+
+    private static bool HandleStreamBundle(Stream stream, out string path)
+    {
+        var previousPosition = stream.Position;
+
+        try
+        {
+            return AssetBundleManager.TryRecompressAssetBundle(stream, out path);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to decompress assetbundle\n{ex}");
+        }
+
+        stream.Position = previousPosition;
+        path = null!;
+        return false;
     }
 }
