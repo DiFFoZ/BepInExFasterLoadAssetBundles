@@ -87,7 +87,16 @@ internal class AssetBundleManager
         return false;
     }
 
-    public bool FindCachedBundleByHash(byte[] hash, out string path)
+    public void DeleteCachedAssetBundle(string path)
+    {
+        FileHelper.TryDeleteFile(path, out var fileException);
+        if (fileException != null)
+        {
+            Patcher.Logger.LogError($"Failed to delete uncompressed assetbundle\n{fileException}");
+        }
+    }
+
+    private bool FindCachedBundleByHash(byte[] hash, out string path)
     {
         path = null!;
 
@@ -134,15 +143,6 @@ internal class AssetBundleManager
 
         Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the free drive space is less than 10GB");
         return;
-    }
-
-    public void DeleteCachedAssetBundle(string path)
-    {
-        FileHelper.TryDeleteFile(path, out var fileException);
-        if (fileException != null)
-        {
-            Patcher.Logger.LogError($"Failed to delete uncompressed assetbundle\n{fileException}");
-        }
     }
 
     private void StartRunner()

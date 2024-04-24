@@ -90,14 +90,16 @@ internal static class Patcher
     private static void LoadAssetBundleFromFileFast(ref string path)
     {
         // mod trying to load assetbundle at null path, buh
-        if (path == null)
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }
 
         try
         {
-            if (AssetBundleManager.FindCachedBundleByHash(HashingHelper.HashFile(path), out var newPath))
+            using var bundleFileStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
+
+            if (HandleStreamBundle(bundleFileStream, out var newPath))
             {
                 path = newPath;
             }
