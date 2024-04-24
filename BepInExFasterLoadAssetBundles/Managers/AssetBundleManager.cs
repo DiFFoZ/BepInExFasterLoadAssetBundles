@@ -136,6 +136,8 @@ internal class AssetBundleManager
 
         if (DriveHelper.HasDriveSpaceOnPath(CachePath, 10))
         {
+            Patcher.Logger.LogDebug($"Queued recompress of \"{Path.GetFileName(workAsset.Path)}\" assetbundle");
+
             m_WorkAssets.Enqueue(workAsset);
             StartRunner();
             return;
@@ -236,6 +238,8 @@ internal class AssetBundleManager
             DeleteCachedAssetBundle(outputPath);
             return;
         }
+
+        Patcher.Logger.LogDebug($"Assetbundle \"{originalFileName}\" is now uncompressed!");
 
         metadata.UncompressedAssetBundleName = outputName;
         Patcher.MetadataManager.SaveMetadata(metadata);
