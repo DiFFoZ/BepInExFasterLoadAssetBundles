@@ -15,6 +15,8 @@ internal static class Patcher
     internal static AssetBundleManager AssetBundleManager { get; private set; } = null!;
     internal static MetadataManager MetadataManager { get; private set; } = null!;
 
+    private static bool s_IsLoadingBundle;
+
     [HarmonyPatch(typeof(Chainloader), nameof(Chainloader.Initialize))]
     [HarmonyPostfix]
     public static void ChainloaderInitialized()
@@ -43,23 +45,16 @@ internal static class Patcher
         var thisType = typeof(Patcher);
         var harmony = BepInExFasterLoadAssetBundlesPatcher.Harmony;
         var allBinding = AccessTools.all;
-
-        // file
-        var patchMethod = new HarmonyMethod(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast), allBinding));
         var assetBundleType = typeof(AssetBundle);
 
-        string[] loadNames = [nameof(AssetBundle.LoadFromFile), nameof(AssetBundle.LoadFromFileAsync)];
-        foreach (var loadName in loadNames)
-        {
-            harmony.Patch(AccessTools.Method(assetBundleType, loadName, [typeof(string)]),
-                prefix: patchMethod);
+        // file
+        var filePatchMethod = new HarmonyMethod(thisType.GetMethod(nameof(LoadAssetBundleFromFileFast), allBinding));
 
-            harmony.Patch(AccessTools.Method(assetBundleType, loadName, [typeof(string), typeof(uint)]),
-               prefix: patchMethod);
+        harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromFile_Internal)),
+            prefix: filePatchMethod);
 
-            harmony.Patch(AccessTools.Method(assetBundleType, loadName, [typeof(string), typeof(uint), typeof(ulong)]),
-               prefix: patchMethod);
-        }
+        harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromFileAsync_Internal)),
+            prefix: filePatchMethod);
 
         // streams
         harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromStreamInternal)),
@@ -89,8 +84,8 @@ internal static class Patcher
 
     private static void LoadAssetBundleFromFileFast(ref string path)
     {
-        // mod trying to load assetbundle at null path, buh
-        if (string.IsNullOrEmpty(path))
+        // ignore bundle load request if we calling it
+        if (s_IsLoadingBundle)
         {
             return;
         }
@@ -114,6 +109,7 @@ internal static class Patcher
     {
         if (HandleStreamBundle(stream, out var path))
         {
+            using var _ = new SetLoadingFlagTemp();
             __result = AssetBundle.LoadFromFile_Internal(path, 0, 0);
             return false;
         }
@@ -125,6 +121,7 @@ internal static class Patcher
     {
         if (HandleStreamBundle(stream, out var path))
         {
+            using var _ = new SetLoadingFlagTemp();
             __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
             return false;
         }
@@ -148,5 +145,19 @@ internal static class Patcher
         stream.Position = previousPosition;
         path = null!;
         return false;
+    }
+
+    // hack to not write try/finally in every method
+    private readonly struct SetLoadingFlagTemp : IDisposable
+    {
+        public SetLoadingFlagTemp()
+        {
+            s_IsLoadingBundle = true;
+        }
+
+        public void Dispose()
+        {
+            s_IsLoadingBundle = false;
+        }
     }
 }
