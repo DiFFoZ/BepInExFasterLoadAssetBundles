@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BepInExFasterLoadAssetBundles.Helpers;
 using BepInExFasterLoadAssetBundles.Models;
@@ -11,6 +12,7 @@ internal class AssetBundleManager
 {
     private readonly ConcurrentQueue<WorkAsset> m_WorkAssets = new();
     private readonly object m_Lock = new();
+    private readonly string m_PathForTemp;
     private bool m_IsProcessingQueue;
 
     public string CachePath { get; }
@@ -22,7 +24,12 @@ internal class AssetBundleManager
         if (!Directory.Exists(CachePath))
         {
             Directory.CreateDirectory(CachePath);
-            return;
+        }
+
+        m_PathForTemp = Path.Combine(CachePath, "temp");
+        if (!Directory.Exists(m_PathForTemp))
+        {
+            Directory.CreateDirectory(m_PathForTemp);
         }
 
         DeleteTempFiles();
@@ -30,14 +37,19 @@ internal class AssetBundleManager
 
     private void DeleteTempFiles()
     {
-        // unity creates tmp files when decompress
         var count = 0;
         try
         {
-            foreach (var tempFile in Directory.EnumerateFiles(CachePath, "*.tmp"))
+            // unity creates tmp files when decompress
+            foreach (var tempFile in Directory.EnumerateFiles(CachePath, "*.tmp").Concat(Directory.EnumerateFiles(m_PathForTemp, "*.assetbundle")))
             {
-                File.Delete(tempFile);
-                count++;
+                DeleteFileSafely(ref count, tempFile);
+            }
+
+            // delete our cache files
+            foreach (var tempFile in Directory.EnumerateFiles(m_PathForTemp, "*.assetbundle"))
+            {
+                DeleteFileSafely(ref count, tempFile);
             }
         }
         catch (Exception ex)
@@ -48,6 +60,17 @@ internal class AssetBundleManager
         if (count > 0)
         {
             Patcher.Logger.LogWarning($"Deleted {count} temp files");
+        }
+
+        static void DeleteFileSafely(ref int count, string tempFile)
+        {
+            if (!FileHelper.TryDeleteFile(tempFile, out var exception))
+            {
+                Patcher.Logger.LogError($"Failed to delete temp file\n{exception}");
+                return;
+            }
+
+            count++;
         }
     }
 
@@ -75,15 +98,8 @@ internal class AssetBundleManager
             return false;
         }
 
-        // copy stream to temp file
-        var tempDirectory = Path.Combine(CachePath, "temp");
-        if (!Directory.Exists(tempDirectory))
-        {
-            Directory.CreateDirectory(tempDirectory);
-        }
-
         var name = Guid.NewGuid().ToString("N") + ".assetbundle";
-        var tempFile = Path.Combine(tempDirectory, name);
+        var tempFile = Path.Combine(m_PathForTemp, name);
 
         using (var fs = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write))
         {

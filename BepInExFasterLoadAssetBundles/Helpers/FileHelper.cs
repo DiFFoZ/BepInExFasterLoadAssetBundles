@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal static class FileHelper
 {
-    public static bool TryDeleteFile(string path, out Exception? exception)
+    public static bool TryDeleteFile(string path, [NotNullWhen(false)] out Exception? exception)
     {
         try
         {
