@@ -159,5 +159,35 @@ internal class MetadataManager
             Patcher.Logger.LogInfo($"Deleting unused asset bundle cache {metadata.UncompressedAssetBundleName}");
             Patcher.AssetBundleManager.DeleteCachedAssetBundle(Path.Combine(Patcher.AssetBundleManager.CachePath, metadata.UncompressedAssetBundleName));
         }
+
+        // delete unknown bundles
+        var deletedBundleCount = 0;
+        foreach (var bundlePath in Directory.GetFiles(Patcher.AssetBundleManager.CachePath, "*.assetbundle", SearchOption.TopDirectoryOnly))
+        {
+            var bundleName = Path.GetFileName(bundlePath);
+            var metadata = m_Metadata.Find(
+                m => m.UncompressedAssetBundleName != null && m.UncompressedAssetBundleName.Equals(bundleName, StringComparison.InvariantCulture));
+
+            if (metadata == null)
+            {
+                DeleteFileSafely(ref deletedBundleCount, bundlePath);
+            }
+        }
+
+        if (deletedBundleCount > 0)
+        {
+            Patcher.Logger.LogWarning($"Deleted {deletedBundleCount} unknown bundles. Metadata file got corrupted?");
+        }
+
+        static void DeleteFileSafely(ref int counter, string path)
+        {
+            if (!FileHelper.TryDeleteFile(path, out var exception))
+            {
+                Patcher.Logger.LogWarning($"Failed to delete cache\n{exception}");
+                return;
+            }
+
+            counter++;
+        }
     }
 }
