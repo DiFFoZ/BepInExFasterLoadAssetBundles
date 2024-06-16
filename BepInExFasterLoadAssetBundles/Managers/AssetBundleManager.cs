@@ -245,7 +245,7 @@ internal class AssetBundleManager
         Patcher.MetadataManager.SaveMetadata(metadata);
     }
 
-    private struct WorkAsset
+    private readonly struct WorkAsset
     {
         public WorkAsset(string path, byte[] hash, bool deleteBundleAfterOperation)
         {
@@ -254,8 +254,8 @@ internal class AssetBundleManager
             DeleteBundleAfterOperation = deleteBundleAfterOperation;
         }
 
-        public string Path { get; set; }
-        public byte[] Hash { get; set; }
+        public string Path { get; }
+        public byte[] Hash { get; }
         public bool DeleteBundleAfterOperation { get; }
     }
 }
