@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
@@ -112,7 +113,7 @@ internal static class Patcher
         return true;
     }
 
-    private static bool HandleStreamBundle(Stream stream, out string path)
+    private static bool HandleStreamBundle(Stream stream, [NotNullWhen(true)] out string? path)
     {
         var previousPosition = stream.Position;
 

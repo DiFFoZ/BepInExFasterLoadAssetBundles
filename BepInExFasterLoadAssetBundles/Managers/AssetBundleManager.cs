@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -74,8 +75,15 @@ internal class AssetBundleManager
         }
     }
 
-    public bool TryRecompressAssetBundle(Stream stream, out string path)
+    public bool TryRecompressAssetBundle(Stream stream, [NotNullWhen(true)] out string? path)
     {
+        if (BundleHelper.CheckBundleIsAlreadyDecompressed(stream))
+        {
+            Patcher.Logger.LogInfo("Original bundle is already uncompressed, using it instead");
+            path = null;
+            return false;
+        }
+
         var hash = HashingHelper.HashStream(stream);
 
         path = null!;
@@ -91,23 +99,27 @@ internal class AssetBundleManager
             return false;
         }
 
+        var compressionType = (stream.Length > 300 * FileHelper.c_MBToBytes)
+            ? CompressionType.Lz4
+            : CompressionType.None;
+
         if (stream is FileStream fileStream)
         {
             path = string.Copy(fileStream.Name);
-            RecompressAssetBundleInternal(new(path, hash, false));
+            RecompressAssetBundleInternal(new(path, hash, false, compressionType));
             return false;
         }
 
         var name = Guid.NewGuid().ToString("N") + ".assetbundle";
         var tempFile = Path.Combine(m_PathForTemp, name);
 
-        using (var fs = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write))
+        using (var fs = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.SequentialScan))
         {
             stream.Seek(0, SeekOrigin.Begin);
             stream.CopyTo(fs);
         }
 
-        RecompressAssetBundleInternal(new(tempFile, hash, true));
+        RecompressAssetBundleInternal(new(tempFile, hash, true, compressionType));
         return false;
     }
 
@@ -229,13 +241,20 @@ internal class AssetBundleManager
         var originalFileName = Path.GetFileNameWithoutExtension(workAsset.Path);
         var outputName = originalFileName + '_' + metadata.GetHashCode() + ".assetbundle";
         var outputPath = Path.Combine(CachePath, outputName);
+        var buildCompression = workAsset.CompressionType switch
+        {
+            CompressionType.None => BuildCompression.UncompressedRuntime,
+            _ => BuildCompression.LZ4Runtime,
+        };
+
+        Patcher.Logger.LogDebug($"Decompressing \"{originalFileName}\" with compression type {workAsset.CompressionType}");
 
         // when loading assetbundle async via stream, the file can be still in use. Wait a bit for that
         await FileHelper.RetryUntilFileIsClosedAsync(workAsset.Path, 5);
         await AsyncHelper.SwitchToMainThread();
 
         var op = AssetBundle.RecompressAssetBundleAsync(workAsset.Path, outputPath,
-            BuildCompression.UncompressedRuntime, 0, ThreadPriority.Normal);
+            buildCompression, 0, ThreadPriority.Normal);
 
         await op.WaitCompletionAsync();
 
@@ -252,24 +271,10 @@ internal class AssetBundleManager
             FileHelper.TryDeleteFile(workAsset.Path, out _);
         }
 
-        Patcher.Logger.LogDebug($"Result of decompression: {result} ({success}), {humanReadableResult}");
+        Patcher.Logger.LogDebug($"Result of decompression \"{originalFileName}\": {result} ({success}), {humanReadableResult}");
         if (result is not AssetBundleLoadResult.Success || !success)
         {
             Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at \"{workAsset.Path}\"\nResult: {result}, {humanReadableResult}");
-            return;
-        }
-
-        const long c_GBToBytes = 1024 * 1024 * 1024;
-        if (new FileInfo(outputPath).Length > 4L * c_GBToBytes)
-        {
-            // WOAH, bundle size is larger than 4GB. For some reason it causes a lot of issues (crashes, reading out of bounds)
-            Patcher.Logger.LogError($"Uncompressed assetbundle \"{originalFileName}\" is larger than 4GB. Ignoring request of decompressing and loading it, because a crash may happen.");
-
-            metadata.ShouldNotDecompress = true;
-            Patcher.MetadataManager.SaveMetadata(metadata);
-
-            DeleteCachedAssetBundle(outputPath);
-
             return;
         }
 
@@ -293,15 +298,17 @@ internal class AssetBundleManager
 
     private readonly struct WorkAsset
     {
-        public WorkAsset(string path, byte[] hash, bool deleteBundleAfterOperation)
+        public WorkAsset(string path, byte[] hash, bool deleteBundleAfterOperation, CompressionType compressionType)
         {
             Path = path;
             Hash = hash;
             DeleteBundleAfterOperation = deleteBundleAfterOperation;
+            CompressionType = compressionType;
         }
 
         public string Path { get; }
         public byte[] Hash { get; }
         public bool DeleteBundleAfterOperation { get; }
+        public CompressionType CompressionType { get; }
     }
 }

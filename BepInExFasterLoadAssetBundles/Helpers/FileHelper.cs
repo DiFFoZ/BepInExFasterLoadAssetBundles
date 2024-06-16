@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal static class FileHelper
 {
+    public const long c_GBToBytes = 1024 * 1024 * 1024;
+    public const long c_MBToBytes = 1024 * 1024;
+
     public static bool TryDeleteFile(string path, [NotNullWhen(false)] out Exception? exception)
     {
         try

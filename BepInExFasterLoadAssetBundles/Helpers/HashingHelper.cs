@@ -19,6 +19,8 @@ internal class HashingHelper
     {
         using var sha1 = new SHA1Managed();
 
+        stream.Seek(0, SeekOrigin.Begin);
+
         var array = ArrayPool<byte>.Shared.Rent(c_BufferSize);
         int readBytes;
         while ((readBytes = stream.Read(array, 0, c_BufferSize)) > 0)
