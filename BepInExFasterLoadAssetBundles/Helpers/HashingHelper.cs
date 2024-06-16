@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
+using UnityEngine;
 
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal class HashingHelper
@@ -17,50 +18,50 @@ internal class HashingHelper
 
     public static byte[] HashStream(Stream stream)
     {
-        using var sha1 = new SHA1Managed();
-
         stream.Seek(0, SeekOrigin.Begin);
 
-        var array = ArrayPool<byte>.Shared.Rent(c_BufferSize);
+        var hash = new Hash128();
+
+        var buffer = ArrayPool<byte>.Shared.Rent(c_BufferSize);
         int readBytes;
-        while ((readBytes = stream.Read(array, 0, c_BufferSize)) > 0)
+        while ((readBytes = stream.Read(buffer, 0, buffer.Length)) > 0)
         {
-            sha1.TransformBlock(array, 0, readBytes, array, 0);
+            hash.Append(buffer, 0, readBytes);
         }
 
-        sha1.TransformFinalBlock([], 0, 0);
+        ArrayPool<byte>.Shared.Return(buffer);
 
-        ArrayPool<byte>.Shared.Return(array);
+        var hashArray = new byte[16];
+        BinaryPrimitives.WriteUInt64LittleEndian(hashArray, hash.u64_0);
+        BinaryPrimitives.WriteUInt64LittleEndian(hashArray.AsSpan()[8..], hash.u64_1);
 
-        return sha1.Hash;
+        return hashArray;
     }
 
-    public static string HashToString(byte[] hash)
+    public static string HashToString(Span<byte> hash)
     {
-        Span<char> chars = stackalloc char[40];
+        Span<char> chars = stackalloc char[hash.Length * 2];
 
         for (var i = 0; i < hash.Length; i++)
         {
             var b = hash[i];
-            b.TryFormat(chars[(i * 2)..], out _, "X2");
+            b.TryFormat(chars[(i * 2)..], out _, "X2", CultureInfo.InvariantCulture);
         }
 
         return chars.ToString();
     }
 
-    public static void StringToHash(string str, Span<byte> buffer)
+    public static void WriteHash(Span<byte> destination, string hash)
     {
-        const int length = 40;
-
-        if (str.Length != length)
+        if ((hash.Length / 2) > destination.Length)
         {
-            throw new ArgumentException("String length is not equals to 40", nameof(str));
+            throw new ArgumentOutOfRangeException("Destination is small to write hash", nameof(destination));
         }
 
-        for (var i = 0; i < 40; i += 2)
+        for (var i = 0; i < hash.Length; i += 2)
         {
-            var s = str.AsSpan(i, 2);
-            buffer[i / 2] = byte.Parse(s, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            var s = hash.AsSpan(i, 2);
+            destination[i / 2] = byte.Parse(s, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
     }
 }

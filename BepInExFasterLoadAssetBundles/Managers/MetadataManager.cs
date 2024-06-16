@@ -27,7 +27,7 @@ internal class MetadataManager
         {
             foreach (var metadata in m_Metadata)
             {
-                HashingHelper.StringToHash(metadata.OriginalAssetBundleHash, tempHash);
+                HashingHelper.WriteHash(tempHash, metadata.OriginalAssetBundleHash);
                 if (tempHash.SequenceEqual(hash))
                 {
                     return metadata;
