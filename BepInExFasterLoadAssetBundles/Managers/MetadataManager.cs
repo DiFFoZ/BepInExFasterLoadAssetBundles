@@ -57,6 +57,26 @@ internal class MetadataManager
         SaveFile();
     }
 
+    public void DeleteMetadata(Metadata metadata)
+    {
+        var shouldSave = false;
+        lock (m_Lock)
+        {
+            var index = m_Metadata.FindIndex(m => m.OriginalAssetBundleHash == metadata.OriginalAssetBundleHash);
+
+            if (index >= 0)
+            {
+                shouldSave = true;
+                m_Metadata.RemoveAt(index);
+            }
+        }
+
+        if (shouldSave)
+        {
+            SaveFile();
+        }
+    }
+
     private void LoadFile()
     {
         if (!File.Exists(m_MetadataFile))

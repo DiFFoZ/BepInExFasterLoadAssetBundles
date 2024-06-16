@@ -145,6 +145,7 @@ internal class AssetBundleManager
         if (!File.Exists(newPath))
         {
             Patcher.Logger.LogWarning($"Failed to find decompressed assetbundle at \"{newPath}\". Probably it was deleted?");
+            Patcher.MetadataManager.DeleteMetadata(metadata);
             return false;
         }
 
