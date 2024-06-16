@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] 2024-06-16
+### Changed
+- Algorithm of hashing assetbundle from SHA1 to Hash128 (spookyhash).
+
 ## [0.6.0] 2024-06-16
 ### Added
 - Big size assetbundles (larger than 300MB) are recompressed with LZ4 instead of uncompressed. This should fix crashes with very unoptimized mod assets.
