@@ -5,10 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] 2024-06-16
+### Added
+- Big size assetbundles (larger than 300MB) are recompressed with LZ4 instead of uncompressed. This should fix crashes with very unoptimized mod assets.
+- Deleting temp files on game start up.
+- Deleting assetbundle metadata if uncompressed bundle was deleted.
+- Pre-check to not recompress, if original assetbundle is already uncompressed or compressed with LZ4.
+### Removed
+- Deleting of the old cache that was introduced in v0.4.0.
+
 ## [0.5.0] 2024-04-24
 ### Changed
 - All bundle loading by stream are now recompressed.
-## Fixed
+### Fixed
 - Array leaking from the pool.
 
 ## [0.4.0] 2024-04-04
