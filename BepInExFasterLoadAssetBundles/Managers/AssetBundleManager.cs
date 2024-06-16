@@ -252,9 +252,24 @@ internal class AssetBundleManager
             FileHelper.TryDeleteFile(workAsset.Path, out _);
         }
 
+        Patcher.Logger.LogDebug($"Result of decompression: {result} ({success}), {humanReadableResult}");
         if (result is not AssetBundleLoadResult.Success || !success)
         {
             Patcher.Logger.LogWarning($"Failed to decompress a assetbundle at \"{workAsset.Path}\"\nResult: {result}, {humanReadableResult}");
+            return;
+        }
+
+        const long c_GBToBytes = 1024 * 1024 * 1024;
+        if (new FileInfo(outputPath).Length > 4L * c_GBToBytes)
+        {
+            // WOAH, bundle size is larger than 4GB. For some reason it causes a lot of issues (crashes, reading out of bounds)
+            Patcher.Logger.LogError($"Uncompressed assetbundle \"{originalFileName}\" is larger than 4GB. Ignoring request of decompressing and loading it, because a crash may happen.");
+
+            metadata.ShouldNotDecompress = true;
+            Patcher.MetadataManager.SaveMetadata(metadata);
+
+            DeleteCachedAssetBundle(outputPath);
+
             return;
         }
 
