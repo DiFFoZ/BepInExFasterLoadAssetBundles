@@ -55,9 +55,17 @@ internal class AssetBundleManager
     {
         var hash = HashingHelper.HashStream(stream);
 
-        if (FindCachedBundleByHash(hash, out path))
+        path = null!;
+        if (FindCachedBundleByHash(hash, out var newPath))
         {
-            return true;
+            if (newPath != null)
+            {
+                path = newPath;
+                return true;
+            }
+
+            Patcher.Logger.LogDebug("Found assetbundle metadata, but path was null. Probably bundle is already uncompressed!");
+            return false;
         }
 
         if (stream is FileStream fileStream)
@@ -96,7 +104,7 @@ internal class AssetBundleManager
         }
     }
 
-    private bool FindCachedBundleByHash(byte[] hash, out string path)
+    private bool FindCachedBundleByHash(byte[] hash, out string? path)
     {
         path = null!;
 
@@ -106,7 +114,13 @@ internal class AssetBundleManager
             return false;
         }
 
-        if (metadata.ShouldNotDecompress || metadata.UncompressedAssetBundleName == null)
+        if (metadata.ShouldNotDecompress)
+        {
+            // note: returning null path
+            return true;
+        }
+
+        if (metadata.UncompressedAssetBundleName == null)
         {
             return false;
         }
