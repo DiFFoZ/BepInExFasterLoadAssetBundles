@@ -3,12 +3,13 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
+using Unity.Collections;
 using UnityEngine;
 
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal class HashingHelper
 {
-    private const int c_BufferSize = 81920;
+    private const int c_BufferSize = 4096;
 
     public static byte[] HashFile(string path)
     {
@@ -22,14 +23,12 @@ internal class HashingHelper
 
         var hash = new Hash128();
 
-        var buffer = ArrayPool<byte>.Shared.Rent(c_BufferSize);
+        using var buffer = new NativeArray<byte>(c_BufferSize, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
         int readBytes;
-        while ((readBytes = stream.Read(buffer, 0, buffer.Length)) > 0)
+        while ((readBytes = stream.Read(buffer)) > 0)
         {
             hash.Append(buffer, 0, readBytes);
         }
-
-        ArrayPool<byte>.Shared.Return(buffer);
 
         var hashArray = new byte[16];
         BinaryPrimitives.WriteUInt64LittleEndian(hashArray, hash.u64_0);
@@ -51,7 +50,7 @@ internal class HashingHelper
         return chars.ToString();
     }
 
-    public static void WriteHash(Span<byte> destination, string hash)
+    public static int WriteHash(Span<byte> destination, string hash)
     {
         if ((hash.Length / 2) > destination.Length)
         {
@@ -63,5 +62,7 @@ internal class HashingHelper
             var s = hash.AsSpan(i, 2);
             destination[i / 2] = byte.Parse(s, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
+
+        return hash.Length / 2;
     }
 }

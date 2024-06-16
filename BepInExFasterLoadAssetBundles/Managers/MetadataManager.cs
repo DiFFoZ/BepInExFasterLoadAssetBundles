@@ -27,8 +27,8 @@ internal class MetadataManager
         {
             foreach (var metadata in m_Metadata)
             {
-                HashingHelper.WriteHash(tempHash, metadata.OriginalAssetBundleHash);
-                if (tempHash.SequenceEqual(hash))
+                var writtenBytes = HashingHelper.WriteHash(tempHash, metadata.OriginalAssetBundleHash);
+                if (tempHash[..writtenBytes].SequenceEqual(hash))
                 {
                     return metadata;
                 }
@@ -42,7 +42,7 @@ internal class MetadataManager
     {
         lock (m_Lock)
         {
-            var index = m_Metadata.FindIndex(m => m.OriginalAssetBundleHash == metadata.OriginalAssetBundleHash);
+            var index = m_Metadata.FindIndex(m => m.OriginalAssetBundleHash.Equals(metadata.OriginalAssetBundleHash, StringComparison.InvariantCulture));
 
             if (index == -1)
             {
@@ -62,7 +62,7 @@ internal class MetadataManager
         var shouldSave = false;
         lock (m_Lock)
         {
-            var index = m_Metadata.FindIndex(m => m.OriginalAssetBundleHash == metadata.OriginalAssetBundleHash);
+            var index = m_Metadata.FindIndex(m => m.OriginalAssetBundleHash.Equals(metadata.OriginalAssetBundleHash, StringComparison.InvariantCulture));
 
             if (index >= 0)
             {

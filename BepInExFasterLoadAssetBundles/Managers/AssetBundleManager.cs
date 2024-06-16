@@ -85,7 +85,7 @@ internal class AssetBundleManager
         }
 
         var hash = HashingHelper.HashStream(stream);
-
+        
         path = null!;
         if (FindCachedBundleByHash(hash, out var newPath))
         {
@@ -262,6 +262,7 @@ internal class AssetBundleManager
         var result = op.result;
         var humanReadableResult = op.humanReadableResult;
         var success = op.success;
+        var newHash = HashingHelper.HashFile(outputPath);
 
         await AsyncHelper.SwitchToThreadPool();
 
@@ -279,7 +280,7 @@ internal class AssetBundleManager
         }
 
         // check if unity returned the same assetbundle (means that assetbundle is already decompressed)
-        if (workAsset.Hash.AsSpan().SequenceEqual(HashingHelper.HashFile(outputPath)))
+        if (workAsset.Hash.AsSpan().SequenceEqual(newHash))
         {
             Patcher.Logger.LogDebug($"Assetbundle \"{originalFileName}\" is already uncompressed, adding to ignore list");
 
