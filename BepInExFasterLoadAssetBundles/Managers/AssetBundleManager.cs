@@ -41,14 +41,10 @@ internal class AssetBundleManager
         var count = 0;
         try
         {
-            // unity creates tmp files when decompress
-            foreach (var tempFile in Directory.EnumerateFiles(CachePath, "*.tmp").Concat(Directory.EnumerateFiles(m_PathForTemp, "*.assetbundle")))
-            {
-                DeleteFileSafely(ref count, tempFile);
-            }
-
-            // delete our cache files
-            foreach (var tempFile in Directory.EnumerateFiles(m_PathForTemp, "*.assetbundle"))
+            // unity creates tmp files when decompress (.tmp)
+            // and our .assetbundle temp file when getting bundle from embedded resource
+            foreach (var tempFile in Directory.EnumerateFiles(CachePath, "*.tmp")
+                .Concat(Directory.EnumerateFiles(m_PathForTemp, "*.assetbundle")))
             {
                 DeleteFileSafely(ref count, tempFile);
             }
