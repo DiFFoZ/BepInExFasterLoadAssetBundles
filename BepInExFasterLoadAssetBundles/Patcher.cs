@@ -78,7 +78,7 @@ internal static class Patcher
 
         try
         {
-            using var bundleFileStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite);
+            using var bundleFileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None, 16 * 1024 * 1024, FileOptions.SequentialScan);
 
             if (HandleStreamBundle(bundleFileStream, out var newPath))
             {

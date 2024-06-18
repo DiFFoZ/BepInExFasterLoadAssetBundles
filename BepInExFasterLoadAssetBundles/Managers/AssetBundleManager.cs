@@ -80,9 +80,10 @@ internal class AssetBundleManager
             return false;
         }
 
-        var hash = HashingHelper.HashStream(stream);
-        
-        path = null!;
+        Span<char> hash = stackalloc char[32];
+        HashingHelper.WriteHash(hash, stream);
+
+        path = null;
         if (FindCachedBundleByHash(hash, out var newPath))
         {
             if (newPath != null)
@@ -102,7 +103,7 @@ internal class AssetBundleManager
         if (stream is FileStream fileStream)
         {
             path = string.Copy(fileStream.Name);
-            RecompressAssetBundleInternal(new(path, hash, false, compressionType));
+            RecompressAssetBundleInternal(new(path, hash.ToString(), false, compressionType));
             return false;
         }
 
@@ -124,7 +125,7 @@ internal class AssetBundleManager
             }
         }
 
-        RecompressAssetBundleInternal(new(tempFile, hash, true, compressionType));
+        RecompressAssetBundleInternal(new(tempFile, hash.ToString(), true, compressionType));
         return false;
     }
 
@@ -137,7 +138,7 @@ internal class AssetBundleManager
         }
     }
 
-    private bool FindCachedBundleByHash(byte[] hash, out string? path)
+    private bool FindCachedBundleByHash(ReadOnlySpan<char> hash, out string? path)
     {
         path = null!;
 
@@ -184,22 +185,16 @@ internal class AssetBundleManager
 
     private void RecompressAssetBundleInternal(WorkAsset workAsset)
     {
-        if (!File.Exists(workAsset.Path))
+        if (!DriveHelper.HasDriveSpaceOnPath(CachePath, 10))
         {
+            Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the free drive space is less than 10GB");
             return;
         }
 
-        if (DriveHelper.HasDriveSpaceOnPath(CachePath, 10))
-        {
-            Patcher.Logger.LogDebug($"Queued recompress of \"{Path.GetFileName(workAsset.Path)}\" assetbundle");
+        Patcher.Logger.LogDebug($"Queued recompress of \"{Path.GetFileName(workAsset.Path)}\" assetbundle");
 
-            m_WorkAssets.Enqueue(workAsset);
-            StartRunner();
-            return;
-        }
-
-        Patcher.Logger.LogWarning($"Ignoring request of decompressing, because the free drive space is less than 10GB");
-        return;
+        m_WorkAssets.Enqueue(workAsset);
+        StartRunner();
     }
 
     private void StartRunner()
@@ -247,7 +242,7 @@ internal class AssetBundleManager
     {
         var metadata = new Metadata()
         {
-            OriginalAssetBundleHash = HashingHelper.HashToString(workAsset.Hash),
+            OriginalAssetBundleHash = workAsset.Hash,
             LastAccessTime = DateTime.Now,
         };
         var originalFileName = Path.GetFileNameWithoutExtension(workAsset.Path);
@@ -274,7 +269,8 @@ internal class AssetBundleManager
         var result = op.result;
         var humanReadableResult = op.humanReadableResult;
         var success = op.success;
-        var newHash = HashingHelper.HashFile(outputPath);
+
+        var newHash = GetHashOfFile(outputPath);
 
         await AsyncHelper.SwitchToThreadPool();
 
@@ -292,7 +288,7 @@ internal class AssetBundleManager
         }
 
         // check if unity returned the same assetbundle (means that assetbundle is already decompressed)
-        if (workAsset.Hash.AsSpan().SequenceEqual(newHash))
+        if (newHash.Equals(workAsset.Hash, StringComparison.InvariantCultureIgnoreCase))
         {
             Patcher.Logger.LogDebug($"Assetbundle \"{originalFileName}\" is already uncompressed, adding to ignore list");
 
@@ -307,11 +303,19 @@ internal class AssetBundleManager
 
         metadata.UncompressedAssetBundleName = outputName;
         Patcher.MetadataManager.SaveMetadata(metadata);
+
+        static string GetHashOfFile(string filePath)
+        {
+            Span<char> hash = stackalloc char[32];
+            HashingHelper.HashFile(hash, filePath);
+
+            return hash.ToString();
+        }
     }
 
     private readonly struct WorkAsset
     {
-        public WorkAsset(string path, byte[] hash, bool deleteBundleAfterOperation, CompressionType compressionType)
+        public WorkAsset(string path, string hash, bool deleteBundleAfterOperation, CompressionType compressionType)
         {
             Path = path;
             Hash = hash;
@@ -320,7 +324,7 @@ internal class AssetBundleManager
         }
 
         public string Path { get; }
-        public byte[] Hash { get; }
+        public string Hash { get; }
         public bool DeleteBundleAfterOperation { get; }
         public CompressionType CompressionType { get; }
     }

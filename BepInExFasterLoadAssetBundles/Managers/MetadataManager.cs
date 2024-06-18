@@ -19,16 +19,13 @@ internal class MetadataManager
         LoadFile();
     }
 
-    public Metadata? FindMetadataByHash(byte[] hash)
+    public Metadata? FindMetadataByHash(ReadOnlySpan<char> hash)
     {
-        Span<byte> tempHash = stackalloc byte[20];
-
         lock (m_Lock)
         {
             foreach (var metadata in m_Metadata)
             {
-                var writtenBytes = HashingHelper.WriteHash(tempHash, metadata.OriginalAssetBundleHash);
-                if (tempHash[..writtenBytes].SequenceEqual(hash))
+                if (hash.SequenceEqual(metadata.OriginalAssetBundleHash))
                 {
                     return metadata;
                 }
