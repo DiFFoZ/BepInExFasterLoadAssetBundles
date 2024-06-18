@@ -140,6 +140,8 @@ internal class AssetBundleManager
 
         if (metadata.ShouldNotDecompress)
         {
+            ModifyAccessTimeAndSave(metadata);
+
             // note: returning null path
             return true;
         }
@@ -160,10 +162,15 @@ internal class AssetBundleManager
         Patcher.Logger.LogDebug($"Loading uncompressed bundle \"{metadata.UncompressedAssetBundleName}\"");
         path = newPath;
 
-        metadata.LastAccessTime = DateTime.Now;
-        Patcher.MetadataManager.SaveMetadata(metadata);
+        ModifyAccessTimeAndSave(metadata);
 
         return true;
+
+        static void ModifyAccessTimeAndSave(Metadata metadata)
+        {
+            metadata.LastAccessTime = DateTime.Now;
+            Patcher.MetadataManager.SaveMetadata(metadata);
+        }
     }
 
     private void RecompressAssetBundleInternal(WorkAsset workAsset)
