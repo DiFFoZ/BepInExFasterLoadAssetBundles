@@ -71,7 +71,7 @@ internal class AssetBundleManager
         }
     }
 
-    public bool TryRecompressAssetBundle(Stream stream, [NotNullWhen(true)] out string? path)
+    public unsafe bool TryRecompressAssetBundle(Stream stream, [NotNullWhen(true)] out string? path)
     {
         if (BundleHelper.CheckBundleIsAlreadyDecompressed(stream))
         {
@@ -106,13 +106,22 @@ internal class AssetBundleManager
             return false;
         }
 
-        var name = Guid.NewGuid().ToString("N") + ".assetbundle";
-        var tempFile = Path.Combine(m_PathForTemp, name);
+        var tempFileName = Guid.NewGuid().ToString("N") + ".assetbundle";
+        var tempFile = Path.Combine(m_PathForTemp, tempFileName);
 
-        using (var fs = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.SequentialScan))
+        using (var fs = new FileStream(tempFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 8192, FileOptions.SequentialScan))
         {
             stream.Seek(0, SeekOrigin.Begin);
-            stream.CopyTo(fs);
+
+            if (stream is UnmanagedMemoryStream unmanagedMemoryStream && unmanagedMemoryStream.Length < int.MaxValue)
+            {
+                var span = new ReadOnlySpan<byte>(unmanagedMemoryStream.PositionPointer, (int)unmanagedMemoryStream.Length);
+                fs.Write(span);
+            }
+            else
+            {
+                stream.CopyTo(fs);
+            }
         }
 
         RecompressAssetBundleInternal(new(tempFile, hash, true, compressionType));
