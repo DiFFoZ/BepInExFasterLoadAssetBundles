@@ -1,15 +1,15 @@
 ﻿using System;
-using System.Buffers;
 using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace BepInExFasterLoadAssetBundles.Helpers;
 internal class HashingHelper
 {
-    private const int c_BufferSize = 4096;
+    private const int c_BufferSize = 16 * (int)FileHelper.c_MBToBytes;
 
     public static byte[] HashFile(string path)
     {
@@ -17,22 +17,26 @@ internal class HashingHelper
         return HashStream(fileStream);
     }
 
-    public static byte[] HashStream(Stream stream)
+    public static unsafe byte[] HashStream(Stream stream)
     {
         stream.Seek(0, SeekOrigin.Begin);
 
+        var buffer = UnsafeUtility.Malloc(4096, 16, Allocator.Temp);
+        var span = new Span<byte>(buffer, 4096);
+
         var hash = new Hash128();
 
-        using var buffer = new NativeArray<byte>(c_BufferSize, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
         int readBytes;
-        while ((readBytes = stream.Read(buffer)) > 0)
+        while ((readBytes = stream.Read(span)) > 0)
         {
-            hash.Append(buffer, 0, readBytes);
+            hash.Append(buffer, (ulong)readBytes);
         }
+
+        UnsafeUtility.Free(buffer, Allocator.Temp);
 
         var hashArray = new byte[16];
         BinaryPrimitives.WriteUInt64LittleEndian(hashArray, hash.u64_0);
-        BinaryPrimitives.WriteUInt64LittleEndian(hashArray.AsSpan()[8..], hash.u64_1);
+        BinaryPrimitives.WriteUInt64LittleEndian(hashArray.AsSpan(8), hash.u64_1);
 
         return hashArray;
     }
