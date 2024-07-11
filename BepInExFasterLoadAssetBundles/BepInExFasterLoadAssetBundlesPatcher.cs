@@ -2,7 +2,7 @@
 using HarmonyLib;
 using Mono.Cecil;
 
-namespace BepInExFasterLoadAssetBundles;
+namespace BepInExFasterLoadAssetBundles.Core;
 
 public class BepInExFasterLoadAssetBundlesPatcher
 {

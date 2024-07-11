@@ -3,12 +3,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
-using BepInExFasterLoadAssetBundles.Helpers;
-using BepInExFasterLoadAssetBundles.Managers;
+using BepInExFasterLoadAssetBundles.Core.Helpers;
+using BepInExFasterLoadAssetBundles.Core.Managers;
 using HarmonyLib;
 using UnityEngine;
 
-namespace BepInExFasterLoadAssetBundles;
+namespace BepInExFasterLoadAssetBundles.Core;
 [HarmonyPatch]
 internal static class Patcher
 {
@@ -98,7 +98,7 @@ internal static class Patcher
             __result = AssetBundle.LoadFromFile_Internal(path, 0, 0);
             return false;
         }
-        
+
         return true;
     }
 
@@ -109,7 +109,7 @@ internal static class Patcher
             __result = AssetBundle.LoadFromFileAsync_Internal(path, 0, 0);
             return false;
         }
-        
+
         return true;
     }
 

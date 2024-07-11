@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using BepInExFasterLoadAssetBundles.Helpers;
-using BepInExFasterLoadAssetBundles.Models;
+using BepInExFasterLoadAssetBundles.Core.Helpers;
+using BepInExFasterLoadAssetBundles.Core.Models;
 using Newtonsoft.Json;
 
-namespace BepInExFasterLoadAssetBundles.Managers;
+namespace BepInExFasterLoadAssetBundles.Core.Managers;
 internal class MetadataManager
 {
     private readonly string m_MetadataFile;

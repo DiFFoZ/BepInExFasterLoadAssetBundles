@@ -6,7 +6,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
-namespace BepInExFasterLoadAssetBundles.Helpers;
+namespace BepInExFasterLoadAssetBundles.Core.Helpers;
 internal class HashingHelper
 {
     private const int c_BufferSize = 16 * (int)FileHelper.c_MBToBytes;

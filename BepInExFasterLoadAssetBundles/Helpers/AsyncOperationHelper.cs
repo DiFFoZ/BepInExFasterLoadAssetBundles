@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace BepInExFasterLoadAssetBundles.Helpers;
+namespace BepInExFasterLoadAssetBundles.Core.Helpers;
 internal static class AsyncOperationHelper
 {
     public static AsyncOperationAwaiter WaitCompletionAsync<T>(this T op) where T : AsyncOperation

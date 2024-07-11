@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace BepInExFasterLoadAssetBundles.Helpers;
+namespace BepInExFasterLoadAssetBundles.Core.Helpers;
 internal static class DriveHelper
 {
     public static bool HasDriveSpaceOnPath(string path, long expectedSpaceGB)
@@ -8,6 +8,6 @@ internal static class DriveHelper
         var driveLetter = Path.GetPathRoot(Path.GetFullPath(path));
         var driveInfo = new DriveInfo(driveLetter);
 
-        return driveInfo.AvailableFreeSpace > (expectedSpaceGB * FileHelper.c_GBToBytes);
+        return driveInfo.AvailableFreeSpace > expectedSpaceGB * FileHelper.c_GBToBytes;
     }
 }

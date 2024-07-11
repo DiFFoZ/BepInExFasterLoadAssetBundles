@@ -4,11 +4,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using BepInExFasterLoadAssetBundles.Helpers;
-using BepInExFasterLoadAssetBundles.Models;
+using BepInExFasterLoadAssetBundles.Core;
+using BepInExFasterLoadAssetBundles.Core.Helpers;
+using BepInExFasterLoadAssetBundles.Core.Models;
 using UnityEngine;
 
-namespace BepInExFasterLoadAssetBundles.Managers;
+namespace BepInExFasterLoadAssetBundles.Core.Managers;
 internal class AssetBundleManager
 {
     private readonly ConcurrentQueue<WorkAsset> m_WorkAssets = new();
@@ -96,7 +97,7 @@ internal class AssetBundleManager
             return false;
         }
 
-        var compressionType = (stream.Length > 300 * FileHelper.c_MBToBytes)
+        var compressionType = stream.Length > 300 * FileHelper.c_MBToBytes
             ? CompressionType.Lz4
             : CompressionType.None;
 

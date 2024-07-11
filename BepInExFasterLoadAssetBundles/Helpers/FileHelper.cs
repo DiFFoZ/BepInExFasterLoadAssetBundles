@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace BepInExFasterLoadAssetBundles.Helpers;
+namespace BepInExFasterLoadAssetBundles.Core.Helpers;
 internal static class FileHelper
 {
     public const long c_GBToBytes = 1024 * 1024 * 1024;

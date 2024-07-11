@@ -2,9 +2,10 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using BepInExFasterLoadAssetBundles.Core;
 using UnityEngine;
 
-namespace BepInExFasterLoadAssetBundles.Helpers;
+namespace BepInExFasterLoadAssetBundles.Core.Helpers;
 internal static class AsyncHelper
 {
     private static UnitySynchronizationContext s_SynchronizationContext = null!;

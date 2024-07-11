@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BepInExFasterLoadAssetBundles.Models;
+namespace BepInExFasterLoadAssetBundles.Core.Models;
 internal class Metadata
 {
     public string? UncompressedAssetBundleName { get; set; }
