@@ -73,13 +73,6 @@ internal class AssetBundleManager
 
     public unsafe bool TryRecompressAssetBundle(Stream stream, [NotNullWhen(true)] out string? path)
     {
-        if (BundleHelper.CheckBundleIsAlreadyDecompressed(stream))
-        {
-            Patcher.Logger.LogInfo("Original bundle is already uncompressed, using it instead");
-            path = null;
-            return false;
-        }
-
         Span<char> hash = stackalloc char[32];
         HashingHelper.WriteHash(hash, stream);
 
