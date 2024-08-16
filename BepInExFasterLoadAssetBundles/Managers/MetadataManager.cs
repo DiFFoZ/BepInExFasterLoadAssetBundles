@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using BepInEx;
 using BepInExFasterLoadAssetBundles.Helpers;
 using BepInExFasterLoadAssetBundles.Models;
 using Newtonsoft.Json;
@@ -10,12 +11,14 @@ internal class MetadataManager
 {
     private readonly string m_MetadataFile;
     private readonly object m_Lock = new();
+    private readonly JsonSerializer m_Serializer;
 
     private List<Metadata> m_Metadata = null!;
 
     public MetadataManager(string metadataFile)
     {
         m_MetadataFile = metadataFile;
+        m_Serializer = JsonSerializer.CreateDefault();
         LoadFile();
     }
 
@@ -84,7 +87,8 @@ internal class MetadataManager
 
         try
         {
-            m_Metadata = JsonConvert.DeserializeObject<List<Metadata>>(File.ReadAllText(m_MetadataFile)) ?? [];
+            using var jsonTextReader = new JsonTextReader(new StreamReader(m_MetadataFile));
+            m_Metadata = m_Serializer.Deserialize<List<Metadata>>(jsonTextReader) ?? [];
         }
         catch (Exception ex)
         {
@@ -131,7 +135,8 @@ internal class MetadataManager
     {
         lock (m_Lock)
         {
-            File.WriteAllText(m_MetadataFile, JsonConvert.SerializeObject(m_Metadata));
+            using var writer = new JsonTextWriter(new StreamWriter(m_MetadataFile, false, Utility.UTF8NoBom));
+            m_Serializer.Serialize(writer, m_Metadata, m_Metadata.GetType());
         }
     }
 
