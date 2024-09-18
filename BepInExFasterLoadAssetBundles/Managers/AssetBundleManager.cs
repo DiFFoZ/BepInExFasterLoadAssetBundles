@@ -103,15 +103,7 @@ internal class AssetBundleManager
         {
             stream.Seek(0, SeekOrigin.Begin);
 
-            if (stream is UnmanagedMemoryStream unmanagedMemoryStream && unmanagedMemoryStream.Length < int.MaxValue)
-            {
-                var span = new ReadOnlySpan<byte>(unmanagedMemoryStream.PositionPointer, (int)unmanagedMemoryStream.Length);
-                fs.Write(span);
-            }
-            else
-            {
-                stream.CopyTo(fs);
-            }
+            stream.CopyTo(fs);
         }
 
         RecompressAssetBundleInternal(new(tempFile, hash.ToString(), true));
