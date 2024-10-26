@@ -96,14 +96,10 @@ internal class AssetBundleManager
             return false;
         }
 
-        var compressionType = (stream.Length > 300 * FileHelper.c_MBToBytes)
-            ? CompressionType.Lz4
-            : CompressionType.None;
-
         if (stream is FileStream fileStream)
         {
             path = string.Copy(fileStream.Name);
-            RecompressAssetBundleInternal(new(path, hash.ToString(), false, compressionType));
+            RecompressAssetBundleInternal(new(path, hash.ToString(), false));
             return false;
         }
 
@@ -125,7 +121,7 @@ internal class AssetBundleManager
             }
         }
 
-        RecompressAssetBundleInternal(new(tempFile, hash.ToString(), true, compressionType));
+        RecompressAssetBundleInternal(new(tempFile, hash.ToString(), true));
         return false;
     }
 
@@ -248,13 +244,9 @@ internal class AssetBundleManager
         var originalFileName = Path.GetFileNameWithoutExtension(workAsset.Path);
         var outputName = originalFileName + '_' + metadata.GetHashCode() + ".assetbundle";
         var outputPath = Path.Combine(CachePath, outputName);
-        var buildCompression = workAsset.CompressionType switch
-        {
-            CompressionType.None => BuildCompression.UncompressedRuntime,
-            _ => BuildCompression.LZ4Runtime,
-        };
+        var buildCompression = BuildCompression.LZ4Runtime;
 
-        Patcher.Logger.LogDebug($"Decompressing \"{originalFileName}\" with compression type {workAsset.CompressionType}");
+        Patcher.Logger.LogDebug($"Decompressing \"{originalFileName}\"");
 
         // when loading assetbundle async via stream, the file can be still in use. Wait a bit for that
         await FileHelper.RetryUntilFileIsClosedAsync(workAsset.Path, 5);
@@ -315,17 +307,15 @@ internal class AssetBundleManager
 
     private readonly struct WorkAsset
     {
-        public WorkAsset(string path, string hash, bool deleteBundleAfterOperation, CompressionType compressionType)
+        public WorkAsset(string path, string hash, bool deleteBundleAfterOperation)
         {
             Path = path;
             Hash = hash;
             DeleteBundleAfterOperation = deleteBundleAfterOperation;
-            CompressionType = compressionType;
         }
 
         public string Path { get; }
         public string Hash { get; }
         public bool DeleteBundleAfterOperation { get; }
-        public CompressionType CompressionType { get; }
     }
 }
