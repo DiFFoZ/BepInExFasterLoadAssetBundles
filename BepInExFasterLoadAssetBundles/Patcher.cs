@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using BepInEx.Bootstrap;
@@ -66,6 +67,10 @@ internal static class Patcher
 
         harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromStreamAsyncInternal)),
             prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromStreamAsyncFast), allBinding)));
+
+        // bytes
+        harmony.Patch(AccessTools.Method(assetBundleType, nameof(AssetBundle.LoadFromMemory_Internal)),
+            prefix: new(thisType.GetMethod(nameof(LoadAssetBundleFromMemoryFast), allBinding)));
     }
 
     private static void LoadAssetBundleFromFileFast(ref string path)
@@ -98,7 +103,7 @@ internal static class Patcher
             __result = AssetBundle.LoadFromFile_Internal(path, 0, 0);
             return false;
         }
-        
+
         return true;
     }
 
@@ -110,6 +115,26 @@ internal static class Patcher
             return false;
         }
         
+        return true;
+    }
+
+    private static bool LoadAssetBundleFromMemoryFast(byte[] binary, ref AssetBundle? __result)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(binary.Length);
+        binary.CopyTo(buffer, 0);
+
+        using var memoryStream = new MemoryStream(buffer, 0, binary.Length);
+
+        var result = HandleStreamBundle(memoryStream, out var path);
+
+        ArrayPool<byte>.Shared.Return(buffer);
+
+        if (result)
+        {
+            __result = AssetBundle.LoadFromFile_Internal(path, 0, 0);
+            return false;
+        }
+
         return true;
     }
 
