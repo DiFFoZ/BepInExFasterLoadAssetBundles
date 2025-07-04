@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using UnityEngine;
 
 namespace BepInExFasterLoadAssetBundles.Helpers;
 
@@ -14,20 +16,48 @@ internal static class DriveHelper
             .Contains("--ignore-space-check", StringComparer.OrdinalIgnoreCase);
     }
 
-    public static bool HasDriveSpaceOnPath(string path, long expectedSpaceGB)
+    public static unsafe bool HasDriveSpaceOnPath(string path, long expectedSpaceGB)
     {
         if (s_IgnoreDriveSpace)
         {
             return true;
         }
 
-        var driveLetter = Path.GetPathRoot(Path.GetFullPath(path));
+        path = Path.GetFullPath(path);
+
+        var driveLetter = Path.GetPathRoot(path);
         var driveInfo = new DriveInfo(driveLetter);
+        var driveTotalFreeSpace = driveInfo.TotalFreeSpace;
 
-        // Switched to TotalFreeSpace for potential fix for Wine users.
-        // AvailableFreeSpace uses user disk quota to get accurate free space
-        // and probably because of that Wine reports invalid available free space.
+        Patcher.Logger.LogInfo($"Received {driveTotalFreeSpace} bytes from drive info");
 
-        return driveInfo.TotalFreeSpace > (expectedSpaceGB * FileHelper.c_GBToBytes);
+        // Check for free space from windows API, as drive info may not work on some linux distros
+        if (Application.platform == RuntimePlatform.WindowsPlayer)
+        {
+            var result = WindowsAPI.GetDiskFreeSpaceEx(path,
+             out var lpFreeBytesAvailableToCaller, out var lpTotalNumberOfBytes, out var lpTotalNumberOfFreeBytes);
+
+            if (!result)
+            {
+                var error = Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
+                Patcher.Logger.LogError(error.ToString() ?? "Unknown error :(");
+            }
+            else
+            {
+                Patcher.Logger.LogInfo($"lpFreeBytesAvailableToCaller: {lpFreeBytesAvailableToCaller}\nlpTotalNumberOfBytes: {lpTotalNumberOfBytes}\nlpTotalNumberOfFreeBytes: {lpTotalNumberOfFreeBytes}");
+                driveTotalFreeSpace = unchecked((long)lpFreeBytesAvailableToCaller);
+            }
+        }
+
+        return driveTotalFreeSpace > (expectedSpaceGB * FileHelper.c_GBToBytes);
+    }
+
+    private static class WindowsAPI
+    {
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static unsafe extern bool GetDiskFreeSpaceEx(string lpDirectoryName,
+         out ulong lpFreeBytesAvailableToCaller,
+         out ulong lpTotalNumberOfBytes,
+         out ulong lpTotalNumberOfFreeBytes);
     }
 }
