@@ -137,7 +137,7 @@ internal class MetadataManager
 
     private void DeleteOldBundles()
     {
-        const int c_DeleteAfterDays = 3;
+        const int c_DeleteAfterDays = 7;
 
         for (var i = m_Metadata.Count - 1; i >= 0; i--)
         {
