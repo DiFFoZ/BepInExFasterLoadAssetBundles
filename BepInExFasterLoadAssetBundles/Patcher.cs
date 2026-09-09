@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.CompilerServices;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using BepInExFasterLoadAssetBundles.Helpers;
@@ -16,6 +17,7 @@ internal static class Patcher
     internal static ManualLogSource Logger { get; private set; } = null!;
     internal static AssetBundleManager AssetBundleManager { get; private set; } = null!;
     internal static MetadataManager MetadataManager { get; private set; } = null!;
+    internal static ConfigManager ConfigManager { get; private set; } = null!;
 
     [HarmonyPatch(typeof(Chainloader), nameof(Chainloader.Initialize))]
     [HarmonyPostfix]
@@ -23,6 +25,7 @@ internal static class Patcher
     {
         // BepInEx is ready to load plugins, patching Unity assetbundles
         AsyncHelper.InitUnitySynchronizationContext();
+        ConfigManager = new();
         Logger = BepInEx.Logging.Logger.CreateLogSource(nameof(BepInExFasterLoadAssetBundlesPatcher));
 
         var dataPath = new DirectoryInfo(Application.dataPath).Parent.FullName;
@@ -35,10 +38,22 @@ internal static class Patcher
         AssetBundleManager = new(outputFolder);
         MetadataManager = new MetadataManager(Path.Combine(outputFolder, "metadata.json"));
 
-        Patch();
+        PatchAssetBundle();
+
+        BepInExFasterLoadAssetBundlesPatcher.Harmony.CreateProcessor(typeof(Chainloader).GetMethod(nameof(Chainloader.Start), AccessTools.all))
+            .AddPostfix(typeof(Patcher).GetMethod(nameof(ChainloaderStarted), AccessTools.all))
+            .Patch();
     }
 
-    private static void Patch()
+    public static void ChainloaderStarted()
+    {
+        if (LethalConfigHelper.IsEnabled)
+        {
+            LethalConfigHelper.RegisterConfig();
+        }
+    }
+
+    private static void PatchAssetBundle()
     {
         var thisType = typeof(Patcher);
         var harmony = BepInExFasterLoadAssetBundlesPatcher.Harmony;

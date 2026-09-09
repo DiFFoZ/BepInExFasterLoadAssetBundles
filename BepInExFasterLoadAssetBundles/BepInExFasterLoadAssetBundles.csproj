@@ -6,8 +6,9 @@
     <WarningsAsErrors>Nullable</WarningsAsErrors>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
-      https://api.nuget.org/v3/index.json;
-      https://nuget.bepinex.dev/v3/index.json;
+        https://api.nuget.org/v3/index.json;
+        https://nuget.bepinex.dev/v3/index.json;
+        https://nuget.windows10ce.com/nuget/v3/index.json;
     </RestoreAdditionalProjectSources>
     <RootNamespace>BepInExFasterLoadAssetBundles</RootNamespace>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -25,7 +26,18 @@
     <PackageReference Include="BepInEx.Core" Version="5.*" IncludeAssets="compile" PrivateAssets="all" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" IncludeAssets="compile" PrivateAssets="all" />
     <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" IncludeAssets="compile" PrivateAssets="all" />
+    <PackageReference Include="AinaVT-LethalConfig" Version="1.*" IncludeAssets="compile" PrivateAssets="all" />  
   </ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
+		<Publicize Include="LethalConfig">
+			<PublicizeTarget>all</PublicizeTarget>
+			<PublicizeCompilerGenerated>false</PublicizeCompilerGenerated>
+			<IncludeOriginalAttributesAttribute>false</IncludeOriginalAttributesAttribute>
+			<Strip>false</Strip>
+		</Publicize>
+	</ItemGroup>
 
   <ItemGroup>
     <None Include="..\CHANGELOG.md" />

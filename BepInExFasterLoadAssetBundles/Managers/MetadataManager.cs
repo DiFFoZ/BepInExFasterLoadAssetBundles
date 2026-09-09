@@ -137,12 +137,10 @@ internal class MetadataManager
 
     private void DeleteOldBundles()
     {
-        const int c_DeleteAfterDays = 7;
-
         for (var i = m_Metadata.Count - 1; i >= 0; i--)
         {
             var metadata = m_Metadata[i];
-            if ((DateTime.Now - metadata.LastAccessTime).TotalDays < c_DeleteAfterDays)
+            if ((DateTime.Now - metadata.LastAccessTime).TotalDays < Patcher.ConfigManager.CacheRetentionDays.Value)
             {
                 continue;
             }
