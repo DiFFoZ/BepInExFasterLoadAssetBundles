@@ -18,6 +18,6 @@ internal class ConfigManager
             ]), false);
 
         CacheRetentionDays = Config.Bind("Cache", "Cache retention (days)", 7,
-            new ConfigDescription("Deletes cached data after the specified number of days", new AcceptableValueRange<int>(1, 99)));
+            new ConfigDescription("Deletes cached bundles after the specified number of days", new AcceptableValueRange<int>(1, 99)));
     }
 }
